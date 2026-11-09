@@ -1,0 +1,8 @@
+{
+  "appId": "com.veda.controller",
+  "appName": "VEDA Controller",
+  "webDir": "mobile/dist",
+  "android": {
+    "backgroundColor": "#0f172a"
+  }
+}

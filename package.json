@@ -1,0 +1,30 @@
+{
+  "name": "veda-clients",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev:desktop": "vite --config desktop/vite.config.js",
+    "dev:mobile": "vite --config mobile/vite.config.js",
+    "build:desktop": "vite build --config desktop/vite.config.js",
+    "build:mobile": "vite build --config mobile/vite.config.js",
+    "android:sync": "npm run build:mobile && cap sync android",
+    "android:debug": "npm run android:sync && android\\gradlew.bat -p android assembleDebug"
+  },
+  "dependencies": {
+    "@aparajita/capacitor-secure-storage": "^7.1.6",
+    "@capacitor-mlkit/barcode-scanning": "^7.5.0",
+    "@capacitor/android": "^7.6.10",
+    "@capacitor/core": "^7.6.10",
+    "@zxing/browser": "^0.1.5",
+    "qrcode.react": "^4.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.6.10",
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.0.0"
+  }
+}

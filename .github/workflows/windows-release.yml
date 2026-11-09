@@ -1,0 +1,53 @@
+name: Build and release VEDA for Windows
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: desktop/ai-agent/requirements.txt
+
+      - name: Install build dependencies
+        working-directory: desktop/ai-agent
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Build Windows executable
+        working-directory: desktop/ai-agent
+        run: |
+          python -m PyInstaller --noconfirm --clean --onefile --windowed `
+            --name VEDA `
+            --collect-all customtkinter `
+            --collect-all vosk `
+            --collect-all keyring `
+            --collect-all socketio `
+            --collect-all engineio `
+            --hidden-import pyttsx3.drivers.sapi5 `
+            --add-data "model/vosk-model-small-en-in-0.4;model/vosk-model-small-en-in-0.4" `
+            widget_ui.py
+
+      - name: Publish latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: VEDA v1.0.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
+          files: desktop/ai-agent/dist/VEDA.exe
