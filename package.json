@@ -20,6 +20,7 @@
     "@capacitor-mlkit/barcode-scanning": "^7.5.0",
     "@capacitor/android": "^7.6.10",
     "@capacitor/core": "^7.6.10",
+    "@capgo/capacitor-updater": "^7.53.0",
     "@zxing/browser": "^0.1.5",
     "electron-updater": "^6.6.2",
     "qrcode.react": "^4.2.0",

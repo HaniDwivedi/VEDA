@@ -4,5 +4,11 @@
   "webDir": "mobile/dist",
   "android": {
     "backgroundColor": "#0f172a"
+  },
+  "plugins": {
+    "CapacitorUpdater": {
+      "appId": "com.veda.controller",
+      "autoUpdate": "atBackground"
+    }
   }
 }
