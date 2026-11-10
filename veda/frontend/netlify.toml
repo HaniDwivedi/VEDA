@@ -1,0 +1,4 @@
+# Paths are relative to the base directory (veda/frontend).
+[build]
+  command = "npm run build"
+  publish = "dist"
