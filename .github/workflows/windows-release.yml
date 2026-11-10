@@ -6,7 +6,10 @@ on:
       - main
     paths:
       - "desktop/**"
+      - "mobile/**"
+      - "android/**"
       - "shared/**"
+      - "capacitor.config.json"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/windows-release.yml"
@@ -35,8 +38,20 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Install Node dependencies
         run: npm ci
+
+      - name: Build Android debug APK
+        run: npm run android:debug
 
       - name: Build Electron installer
         run: npm run build:desktop:installer
@@ -81,3 +96,4 @@ jobs:
             desktop/release/VEDA-Desktop-Setup-*.exe
             desktop/release/VEDA-Desktop-Setup-*.exe.blockmap
             desktop/release/latest.yml
+            android/app/build/outputs/apk/debug/app-debug.apk

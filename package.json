@@ -13,7 +13,7 @@
     "release:desktop": "npm run build:desktop && electron-builder --win nsis --publish always",
     "build:mobile": "vite build --config mobile/vite.config.js",
     "android:sync": "npm run build:mobile && cap sync android",
-    "android:debug": "npm run android:sync && android\\gradlew.bat -p android assembleDebug"
+    "android:debug": "npm run android:sync && node android/build-debug.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "^7.1.6",
