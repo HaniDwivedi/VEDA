@@ -1,7 +1,7 @@
 {
   "name": "veda-clients",
   "private": true,
-  "version": "1.0.5",
+  "version": "1.0.6",
   "type": "module",
   "main": "desktop/main.cjs",
   "scripts": {
@@ -38,12 +38,15 @@
   "build": {
     "appId": "com.veda.desktop",
     "productName": "VEDA Desktop",
+    "artifactName": "VEDA-Desktop-Setup-${version}.${ext}",
     "directories": {
       "output": "desktop/release"
     },
     "files": [
       "desktop/main.cjs",
-      "desktop/dist/**/*"
+      "desktop/dist/**/*",
+      "!**/android/build/**",
+      "!**/.gradle/**"
     ],
     "win": {
       "target": "nsis"

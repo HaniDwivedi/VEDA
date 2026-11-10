@@ -22,14 +22,15 @@ published and cannot auto-update until a matching GitHub release is available.
 
 ## Publish a release
 
-1. Increment the root `package.json` version. The latest release is `v1.0.4`;
-   this source is prepared as `1.0.5`.
-2. Push the version and code changes to `main`.
-3. In GitHub, open **Actions > Publish VEDA Desktop > Run workflow**. The
-   workflow uses GitHub's short-lived built-in token; no personal access token
-   is needed.
-4. Verify the release contains the NSIS installer, `latest.yml`, and referenced
-   update files.
+1. Increment the root `package.json` version for each new desktop release. The
+   latest release is `v1.0.5`; this source is prepared as `1.0.6` because the
+   `v1.0.5` Python-only release had already started.
+2. Push the version and code changes to `main`. The Windows release workflow
+   builds both the Python widget and Electron NSIS installer, then publishes
+   them together using GitHub's built-in token; no personal access token is
+   needed.
+3. Verify the GitHub release contains the NSIS installer, `latest.yml`, and
+   referenced update files.
 
 Users must install the NSIS installer from a published release to receive
 automatic updates. The older `VEDA.exe` release asset is not the NSIS installer
