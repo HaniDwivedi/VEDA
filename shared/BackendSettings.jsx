@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { API_URL } from "./auth.js";
 
 export default function BackendSettings() {
-  const [serverUrl, setServerUrl] = useState(API_URL);
+  const [serverUrl, setServerUrl] = useState(https://veda-kkbd.onrender.com);
   const [error, setError] = useState("");
 
   const save = (event) => {
