@@ -1,0 +1,4 @@
+# Build the landing page from this directory and publish the Vite output.
+[build]
+  command = "npm run build"
+  publish = "dist"
