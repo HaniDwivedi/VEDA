@@ -9,7 +9,7 @@
     "dev:mobile": "vite --config mobile/vite.config.js",
     "build:desktop": "vite build --config desktop/vite.config.js",
     "start:desktop": "npm run build:desktop && electron .",
-    "build:desktop:installer": "npm run build:desktop && electron-builder --win nsis",
+    "build:desktop:installer": "npm run build:desktop && electron-builder --win nsis --publish never",
     "release:desktop": "npm run build:desktop && electron-builder --win nsis --publish always",
     "build:mobile": "vite build --config mobile/vite.config.js",
     "android:sync": "npm run build:mobile && cap sync android",
