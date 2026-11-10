@@ -22,6 +22,8 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -38,12 +40,10 @@ jobs:
       - name: Build mobile web bundle
         run: npm run build:mobile
 
+      - name: Skip Capgo upload when its API key is not configured
+        if: env.CAPGO_TOKEN == ''
+        run: echo "::warning::Capgo upload skipped. Add the CAPGO_TOKEN Actions secret to enable mobile live updates."
+
       - name: Upload bundle to Capgo production
-        env:
-          CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
-        run: |
-          if [ -z "$CAPGO_TOKEN" ]; then
-            echo "::error::Set the CAPGO_TOKEN GitHub Actions secret before uploading mobile updates."
-            exit 1
-          fi
-          npx --yes @capgo/cli@latest bundle upload --channel production --auto-bump patch --apikey "$CAPGO_TOKEN"
+        if: env.CAPGO_TOKEN != ''
+        run: npx --yes @capgo/cli@latest bundle upload --channel production --auto-bump patch --apikey "$CAPGO_TOKEN"

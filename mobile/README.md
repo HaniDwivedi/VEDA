@@ -44,8 +44,9 @@ require a newly signed Android release through the store.
    web-bundle changes can arrive automatically.
 4. On subsequent pushes to `main` that change `mobile/`, `shared/`, or the root
    dependency manifests, GitHub Actions builds the mobile bundle and uploads it
-   to Capgo's `production` channel. The workflow can also be started manually
-   from the Actions tab.
+   to Capgo's `production` channel when `CAPGO_TOKEN` is configured. Without
+   that secret, the build still passes but the workflow warns and skips upload.
+   The workflow can also be started manually from the Actions tab.
 
 Each upload receives a new patch bundle version. OTA updates must remain
 compatible with the native app already installed; native-code and plugin

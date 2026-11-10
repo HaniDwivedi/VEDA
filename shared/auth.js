@@ -6,10 +6,14 @@ import {
   setStoredToken
 } from "./token_storage.js";
 
+const defaultApiUrl = import.meta.env.PROD
+  ? "https://veda-kkbd.onrender.com"
+  : "http://localhost:5000";
+
 export const API_URL = window.VEDA_SERVER_URL ||
   localStorage.getItem("veda-server-url") ||
   import.meta.env.VITE_VEDA_SERVER_URL ||
-  "http://localhost:5000";
+  defaultApiUrl;
 
 let refreshInFlight;
 

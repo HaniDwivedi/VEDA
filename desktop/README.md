@@ -3,7 +3,9 @@
 The desktop client is packaged as a Windows NSIS installer with Electron. Packaged
 releases check the GitHub Releases page on launch and every six hours. Updates
 download in the background; after a download, the app asks the user before
-restarting to install it. Vite development mode does not check for updates.
+restarting to install it. Production builds use `https://veda-kkbd.onrender.com`
+as their backend by default; `VITE_VEDA_SERVER_URL` can override it at build time.
+Vite development mode uses `http://localhost:5000` and does not check for updates.
 
 ## Build locally
 
@@ -20,15 +22,23 @@ published and cannot auto-update until a matching GitHub release is available.
 
 ## Publish a release
 
-1. Increment the root `package.json` version. Each published version must be
-   higher than the version already installed by users.
-2. Set `GH_TOKEN` in the publishing environment to a GitHub token authorized to
-   create releases in `HaniDwivedi/VEDA`. Keep the token out of source control
-   and never place it in the packaged app.
-3. From the repository root, run `npm run release:desktop`.
-4. Verify the GitHub release contains the Windows installer and its generated
-   update metadata (`latest.yml` and referenced package files).
+1. Increment the root `package.json` version. The latest release is `v1.0.4`;
+   this source is prepared as `1.0.5`.
+2. Push the version and code changes to `main`.
+3. In GitHub, open **Actions > Publish VEDA Desktop > Run workflow**. The
+   workflow uses GitHub's short-lived built-in token; no personal access token
+   is needed.
+4. Verify the release contains the NSIS installer, `latest.yml`, and referenced
+   update files.
 
 Users must install the NSIS installer from a published release to receive
-automatic updates. The GitHub release provider is configured for this
-repository; do not distribute builds from an unpublished or draft release.
+automatic updates. The older `VEDA.exe` release asset is not the NSIS installer
+required for this updater; users on that build must install the new setup
+installer once. The GitHub release provider is configured for this repository.
+
+## Browser frontend
+
+The public landing page in `veda/frontend` is separate from the desktop app and
+backend. Netlify builds it from that directory using its existing `netlify.toml`.
+Share the Netlify site URL for the public website, the GitHub Releases URL for
+the Windows installer, and use the Render URL only as the backend API endpoint.
