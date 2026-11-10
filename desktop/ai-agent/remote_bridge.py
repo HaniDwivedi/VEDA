@@ -6,6 +6,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Callable
 from urllib.error import HTTPError
 from urllib.error import URLError
 from urllib.parse import urlparse
@@ -21,9 +22,15 @@ KEYRING_SERVICE = "VEDA Desktop Agent"
 
 
 class RemoteAgentBridge:
-    def __init__(self, server_url: str, allowed_origins: set[str]) -> None:
+    def __init__(
+        self,
+        server_url: str,
+        allowed_origins: set[str],
+        on_connection_change: Callable[[bool], None] | None = None,
+    ) -> None:
         self.server_url = self._normalize_server_url(server_url)
         self.allowed_origins = allowed_origins
+        self.on_connection_change = on_connection_change
         self.client = socketio.Client(reconnection=False, logger=False, engineio_logger=False)
         self._stop = threading.Event()
         self._credentials_changed = threading.Event()
@@ -38,6 +45,15 @@ class RemoteAgentBridge:
         self.client.on("agent_command_received", self._receive_command)
         self.client.on("agent_command_approval", self._receive_approval)
         self.client.on("connect_error", self._handle_connect_error)
+        self.client.on("connect", lambda: self._notify_connection_change(True))
+        self.client.on("disconnect", lambda: self._notify_connection_change(False))
+
+    def _notify_connection_change(self, connected: bool) -> None:
+        if self.on_connection_change:
+            try:
+                self.on_connection_change(connected)
+            except Exception:
+                logger.exception("Could not notify the widget about the secure connection state.")
 
     def start(self) -> None:
         self._http_thread.start()

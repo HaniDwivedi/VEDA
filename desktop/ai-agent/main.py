@@ -150,6 +150,7 @@ audio_queue = queue.Queue()
 stop_event = threading.Event()
 rec = None
 is_ai_processing = False
+engine_ready = False
 
 
 def _update_agent_state(snapshot):
@@ -163,6 +164,22 @@ agent_runtime = AgentRuntime(workers=3, on_change=_update_agent_state)
 
 def get_agent_status():
     return agent_runtime.snapshot()
+
+
+def is_engine_ready():
+    return engine_ready
+
+
+def resume_listening():
+    with audio_queue.mutex:
+        audio_queue.queue.clear()
+    stop_event.clear()
+
+
+def pause_listening():
+    stop_event.set()
+    with audio_queue.mutex:
+        audio_queue.queue.clear()
 
 
 def report_engine_failure(error):
@@ -210,12 +227,14 @@ def run_complex_ai_task(update):
 
 def trigger_ai_manually():
     """Manual trigger handler accessible to dashboard widgets and floating UI layouts"""
+    if not engine_ready or stop_event.is_set():
+        return
     print("Aesthetic UI Click/Trigger Registered! Dispatched to agent runtime...")
     agent_runtime.submit("Voice request", run_complex_ai_task, attempts=2)
 
-def main_loop():
-    global is_ai_processing, rec
-    stop_event.clear()
+
+def _run_audio_loop():
+    global engine_ready, is_ai_processing, rec
     print("\n🚀 NEXUS ULTIMATE HYBRID ENGINE ACTIVE 🚀")
     print("👉 Pure Local Operations (No Quota Loss): up, down, go back, close tab, refresh, close [app]")
     print("👉 Cloud Heavyweight AI System: State wake-word 'Nexus' directly anytime.\n")
@@ -224,10 +243,15 @@ def main_loop():
         raise FileNotFoundError(f"Vosk model directory not found: {model_path}")
     print("Loading offline speech recognition model...")
     rec = KaldiRecognizer(Model(model_path), 16000)
+    if stop_event.is_set():
+        return
     speak("Welcome. How can I help?")
+    if stop_event.is_set():
+        return
 
     with sd.RawInputStream(samplerate=16000, blocksize=4000, dtype='int16',
                             channels=1, callback=audio_callback):
+        engine_ready = True
         
         while not stop_event.is_set():
             try:
@@ -270,9 +294,18 @@ def main_loop():
                     rec.Reset()
 
 
+def main_loop():
+    global engine_ready
+    engine_ready = False
+    try:
+        _run_audio_loop()
+    finally:
+        engine_ready = False
+
+
 def request_shutdown():
     """Stop audio capture and prevent new manual tasks during UI shutdown."""
-    stop_event.set()
+    pause_listening()
     agent_runtime.shutdown()
 
 
