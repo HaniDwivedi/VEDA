@@ -98,7 +98,7 @@ export default function WebUI() {
             {/* Desktop Download */}
             <a
               id="desktop-download"
-              href="https://github.com/HaniDwivedi/VEDA/releases/latest/download/VEDA-Desktop-Setup-1.0.8.exe"
+              href="https://github.com/HaniDwivedi/VEDA/releases/latest/download/VEDA-Desktop-Setup-1.0.9.exe"
               className="group relative flex items-center justify-center gap-3 w-full sm:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-2xl font-semibold transition-all duration-300 shadow-[0_0_20px_rgba(79,70,229,0.4)] hover:shadow-[0_0_30px_rgba(79,70,229,0.7)] hover:-translate-y-1"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -113,7 +113,7 @@ export default function WebUI() {
             {/* Android APK Download */}
             <a
               id="android-download"
-              href="/downloads/veda-mobile.apk"
+              href="https://github.com/HaniDwivedi/VEDA/releases/latest/download/app-debug.apk"
               className="group relative flex items-center justify-center gap-3 w-full sm:w-auto px-8 py-4 bg-gray-900 border border-gray-700 rounded-2xl font-semibold transition-all duration-300 hover:border-pink-400 hover:-translate-y-1"
             >
               <svg className="w-6 h-6 text-gray-300 group-hover:text-pink-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">

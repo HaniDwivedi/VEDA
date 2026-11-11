@@ -1,7 +1,5 @@
 // Read one-time pairing QR codes from the mobile camera with ZXing.
 import React, { useEffect, useRef } from "react";
-import { Capacitor } from "@capacitor/core";
-import { BarcodeFormat, BarcodeScanner } from "@capacitor-mlkit/barcode-scanning";
 
 export const fetchClientMetadata = async (deviceId) => ({
   deviceId,
@@ -32,28 +30,7 @@ export default function QRScanner({ onScan, onError }) {
       if (!active) controls.stop();
     };
 
-    const startScanner = async () => {
-      if (Capacitor.getPlatform() === "android") {
-        const { available } = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
-        if (available) {
-          const { barcodes } = await BarcodeScanner.scan({
-            formats: [BarcodeFormat.QrCode]
-          });
-          if (active && barcodes[0]?.rawValue) onScan(barcodes[0].rawValue);
-          else if (active) onError("No QR code was scanned.");
-          return;
-        }
-
-        const { camera } = await BarcodeScanner.requestPermissions();
-        if (camera !== "granted") {
-          throw new Error("Camera permission is required to scan the pairing QR.");
-        }
-      }
-
-      await startBrowserScanner();
-    };
-
-    startScanner().catch((error) => {
+    startBrowserScanner().catch((error) => {
       if (active) onError(`Camera could not start: ${error.message}`);
     });
 
@@ -61,9 +38,6 @@ export default function QRScanner({ onScan, onError }) {
       active = false;
       controlsRef.current?.stop();
       controls?.stop();
-      BarcodeScanner.removeAllListeners().catch((error) => {
-        console.error("Could not stop the native QR scanner:", error);
-      });
     };
   }, [onError, onScan]);
 

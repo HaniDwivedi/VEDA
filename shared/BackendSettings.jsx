@@ -28,23 +28,33 @@ export default function BackendSettings() {
   };
 
   return (
-    <form onSubmit={save} style={styles.form}>
-      <label htmlFor="veda-server-url">Backend URL</label>
-      <input
-        id="veda-server-url"
-        type="url"
-        value={serverUrl}
-        onChange={(event) => setServerUrl(event.target.value)}
-        autoComplete="url"
-        style={styles.input}
-      />
-      <button type="submit">Save backend</button>
-      {error && <p role="alert" style={styles.error}>{error}</p>}
-    </form>
+    <details style={styles.details}>
+      <summary>Advanced: Backend connection</summary>
+      <p style={styles.description}>
+        Most users can leave this unchanged. It tells VEDA which server handles
+        pairing, chat, and screen streaming. Change it only when using your own
+        backend or when your administrator gives you a different URL.
+      </p>
+      <form onSubmit={save} style={styles.form}>
+        <label htmlFor="veda-server-url">Backend URL</label>
+        <input
+          id="veda-server-url"
+          type="url"
+          value={serverUrl}
+          onChange={(event) => setServerUrl(event.target.value)}
+          autoComplete="url"
+          style={styles.input}
+        />
+        <button type="submit">Save backend URL</button>
+        {error && <p role="alert" style={styles.error}>{error}</p>}
+      </form>
+    </details>
   );
 }
 
 const styles = {
+  details: { margin: "20px 0", textAlign: "left" },
+  description: { color: "#cbd5e1", fontSize: 14, lineHeight: 1.5 },
   form: { display: "grid", gap: 8, margin: "20px 0", textAlign: "left" },
   input: {
     width: "100%",
