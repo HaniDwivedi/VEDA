@@ -1,0 +1,100 @@
+name: Build and release VEDA for Windows
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "desktop/**"
+      - "mobile/**"
+      - "android/**"
+      - "shared/**"
+      - "capacitor.config.json"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/windows-release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: desktop/ai-agent/requirements.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build Android debug APK
+        run: npm run android:debug
+
+      - name: Install build dependencies
+        working-directory: desktop/ai-agent
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Build Windows executable
+        working-directory: desktop/ai-agent
+        run: |
+          python -m PyInstaller --noconfirm --clean --onefile --windowed `
+            --collect-all customtkinter `
+            --collect-all vosk `
+            --collect-all keyring `
+            --collect-all socketio `
+            --collect-all engineio `
+            --hidden-import pyttsx3.drivers.sapi5 `
+            --add-data "model/vosk-model-small-en-in-0.4;model/vosk-model-small-en-in-0.4" `
+            --name VEDA-Agent `
+            widget_ui.py
+
+      - name: Build Electron installer
+        run: npm run build:desktop:installer
+
+      - name: Read desktop version
+        id: app-version
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Publish latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.app-version.outputs.version }}
+          name: VEDA v${{ steps.app-version.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
+          overwrite_files: true
+          files: |
+            desktop/release/VEDA-Desktop-Setup-*.exe
+            desktop/release/VEDA-Desktop-Setup-*.exe.blockmap
+            desktop/release/latest.yml
+            android/app/build/outputs/apk/debug/app-debug.apk

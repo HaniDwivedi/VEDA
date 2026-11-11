@@ -1,0 +1,13 @@
+# Windows widget, voice I/O, local AI routing, and executable build dependencies.
+customtkinter==5.2.2
+vosk==0.3.45
+sounddevice==0.5.1
+PyAutoGUI==0.9.54
+PyAudio==0.2.14
+pyttsx3==2.98
+groq==0.11.0
+httpx==0.28.1
+python-dotenv==1.0.1
+python-socketio[client]==5.12.1
+keyring==25.6.0
+PyInstaller==6.11.1

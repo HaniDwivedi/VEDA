@@ -1,0 +1,6 @@
+__pycache__/
+build/
+dist/
+*.spec
+temp_query.wav
+.env

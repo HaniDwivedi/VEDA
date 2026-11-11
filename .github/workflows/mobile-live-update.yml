@@ -1,0 +1,49 @@
+name: Deploy mobile live update
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "mobile/**"
+      - "shared/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/mobile-live-update.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-live-update-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build mobile web bundle
+        run: npm run build:mobile
+
+      - name: Skip Capgo upload when its API key is not configured
+        if: env.CAPGO_TOKEN == ''
+        run: echo "::warning::Capgo upload skipped. Add the CAPGO_TOKEN Actions secret to enable mobile live updates."
+
+      - name: Upload bundle to Capgo production
+        if: env.CAPGO_TOKEN != ''
+        run: npx --yes @capgo/cli@latest bundle upload --channel production --auto-bump patch --apikey "$CAPGO_TOKEN"
