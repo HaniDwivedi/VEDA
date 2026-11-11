@@ -55,9 +55,6 @@ jobs:
       - name: Build Android debug APK
         run: npm run android:debug
 
-      - name: Build Electron installer
-        run: npm run build:desktop:installer
-
       - name: Install build dependencies
         working-directory: desktop/ai-agent
         run: |
@@ -68,7 +65,6 @@ jobs:
         working-directory: desktop/ai-agent
         run: |
           python -m PyInstaller --noconfirm --clean --onefile --windowed `
-            --name VEDA `
             --collect-all customtkinter `
             --collect-all vosk `
             --collect-all keyring `
@@ -76,7 +72,11 @@ jobs:
             --collect-all engineio `
             --hidden-import pyttsx3.drivers.sapi5 `
             --add-data "model/vosk-model-small-en-in-0.4;model/vosk-model-small-en-in-0.4" `
+            --name VEDA-Agent `
             widget_ui.py
+
+      - name: Build Electron installer
+        run: npm run build:desktop:installer
 
       - name: Read desktop version
         id: app-version
@@ -94,7 +94,6 @@ jobs:
           generate_release_notes: true
           overwrite_files: true
           files: |
-            desktop/ai-agent/dist/VEDA.exe
             desktop/release/VEDA-Desktop-Setup-*.exe
             desktop/release/VEDA-Desktop-Setup-*.exe.blockmap
             desktop/release/latest.yml

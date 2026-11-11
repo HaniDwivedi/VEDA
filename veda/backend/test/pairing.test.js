@@ -174,6 +174,23 @@ test("pairs devices, rotates tokens, and routes packets to the opposite role", a
   mobileSocket.emit("webrtc_ready");
   await Promise.all([desktopReady, mobileReady]);
 
+  const activeVoiceState = waitForEvent(agentSocket, "voice_stream_state");
+  desktopSocket.emit("voice_stream_state", { active: true });
+  assert.deepEqual(await activeVoiceState, { active: true });
+
+  const lateAgentSocket = connectSocket(serverUrl, {
+    auth: { token: agentRefresh.accessToken, clientType: "desktop-agent" },
+    transports: ["websocket"]
+  });
+  sockets.push(lateAgentSocket);
+  const lateAgentVoiceState = waitForEvent(lateAgentSocket, "voice_stream_state");
+  await waitForEvent(lateAgentSocket, "connect");
+  assert.deepEqual(await lateAgentVoiceState, { active: true });
+
+  const inactiveVoiceState = waitForEvent(agentSocket, "voice_stream_state");
+  desktopSocket.emit("voice_stream_state", { active: false });
+  assert.deepEqual(await inactiveVoiceState, { active: false });
+
   const routedSignal = waitForEvent(desktopSocket, "webrtc_signal");
   let sameRoleReceivedSignal = false;
   secondMobileSocket.once("webrtc_signal", () => { sameRoleReceivedSignal = true; });

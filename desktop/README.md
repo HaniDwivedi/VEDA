@@ -1,10 +1,14 @@
 # VEDA Desktop
 
-The desktop client is packaged as a Windows NSIS installer with Electron. Packaged
-releases check the GitHub Releases page on launch and every six hours. Updates
-download in the background; after a download, the app asks the user before
-restarting to install it. Production builds use `https://veda-kkbd.onrender.com`
-as their backend by default; `VITE_VEDA_SERVER_URL` can override it at build time.
+The desktop client is packaged as a Windows NSIS installer with Electron. On
+launch it opens the pairing screen and starts the bundled floating agent widget.
+After the phone is paired, open the stream from the pairing screen; the widget
+shows agent status and listens for voice commands while the phone is connected.
+Packaged releases check the GitHub Releases page on launch and every six hours.
+Updates download in the background; after a download, the app asks the user
+before restarting to install it. Production builds use
+`https://veda-kkbd.onrender.com` as their backend by default;
+`VITE_VEDA_SERVER_URL` can override it at build time.
 Vite development mode uses `http://localhost:5000` and does not check for updates.
 
 ## Build locally
@@ -12,7 +16,20 @@ Vite development mode uses `http://localhost:5000` and does not check for update
 From the repository root:
 
 ```powershell
-npm install
+npm ci
+cd desktop/ai-agent
+python -m pip install -r requirements.txt
+python -m PyInstaller --noconfirm --clean --onefile --windowed `
+  --name VEDA-Agent `
+  --collect-all customtkinter `
+  --collect-all vosk `
+  --collect-all keyring `
+  --collect-all socketio `
+  --collect-all engineio `
+  --hidden-import pyttsx3.drivers.sapi5 `
+  --add-data "model/vosk-model-small-en-in-0.4;model/vosk-model-small-en-in-0.4" `
+  widget_ui.py
+cd ../..
 npm run start:desktop
 npm run build:desktop:installer
 ```
@@ -26,16 +43,16 @@ published and cannot auto-update until a matching GitHub release is available.
    latest release is `v1.0.5`; this source is prepared as `1.0.6` because the
    `v1.0.5` Python-only release had already started.
 2. Push the version and code changes to `main`. The Windows release workflow
-   builds both the Python widget and Electron NSIS installer, then publishes
-   them together using GitHub's built-in token; no personal access token is
-   needed.
+   bundles the Python agent widget inside the Electron NSIS installer and
+   publishes the installer using GitHub's built-in token; no personal access
+   token is needed.
 3. Verify the GitHub release contains the NSIS installer, `latest.yml`, and
    referenced update files.
 
 Users must install the NSIS installer from a published release to receive
-automatic updates. The older `VEDA.exe` release asset is not the NSIS installer
-required for this updater; users on that build must install the new setup
-installer once. The GitHub release provider is configured for this repository.
+automatic updates. The previous standalone `VEDA.exe` only opened the floating
+agent widget; current releases bundle it inside the installer. The GitHub
+release provider is configured for this repository.
 
 ## Browser frontend
 

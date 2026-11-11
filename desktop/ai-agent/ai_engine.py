@@ -8,8 +8,14 @@ import httpx
 
 from os_agent import OSAgent
 from response_agent import ResponseAgent
+from voice import get_groq_client
 
 logger = logging.getLogger("AIEngine")
+SYSTEM_INSTRUCTION = (
+    "Convert the request to strict JSON only with format "
+    '{"target_agent":"OS"|"RESPONSE","action":"LAUNCH_APP"|"CHAT",'
+    '"parameters":{}}. Never return shell commands.'
+)
 
 
 class AIEngineOrchestrator:
@@ -19,16 +25,12 @@ class AIEngineOrchestrator:
         )).rstrip("/")
         self.os_agent = OSAgent()
         self.response_agent = ResponseAgent()
+        self.groq_client = get_groq_client()
 
     async def parse_intent_tinyllama(self, prompt_text: str) -> dict:
-        system_instruction = (
-            "Convert the request to strict JSON only with format "
-            '{"target_agent":"OS"|"RESPONSE","action":"LAUNCH_APP"|"CHAT",'
-            '"parameters":{}}. Never return shell commands.'
-        )
         payload = {
             "model": os.getenv("OLLAMA_MODEL", "tinyllama"),
-            "prompt": f"<|system|>\n{system_instruction}\n"
+            "prompt": f"<|system|>\n{SYSTEM_INSTRUCTION}\n"
                       f"<|user|>\n{prompt_text}\n<|assistant|>\n",
             "stream": False,
             "format": "json"
@@ -68,8 +70,34 @@ class AIEngineOrchestrator:
             "parameters": {"reply": "I couldn't map that request to a supported app."}
         }
 
+    def _parse_intent_groq(self, prompt_text: str) -> dict:
+        completion = self.groq_client.chat.completions.create(
+            model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+            messages=[
+                {"role": "system", "content": SYSTEM_INSTRUCTION},
+                {"role": "user", "content": prompt_text},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0,
+        )
+        content = completion.choices[0].message.content
+        parsed = json.loads(content)
+        if not isinstance(parsed, dict) or parsed.get("target_agent") not in {"OS", "RESPONSE"} \
+                or parsed.get("action") not in {"LAUNCH_APP", "CHAT"} \
+                or not isinstance(parsed.get("parameters"), dict):
+            raise ValueError("Groq returned an unsupported intent shape.")
+        return parsed
+
+    async def parse_intent(self, prompt_text: str) -> dict:
+        if self.groq_client is not None:
+            try:
+                return await asyncio.to_thread(self._parse_intent_groq, prompt_text)
+            except Exception as error:
+                logger.warning("Groq intent parsing failed; falling back to Ollama: %s", error)
+        return await self.parse_intent_tinyllama(prompt_text)
+
     async def process_command(self, prompt_text: str) -> str:
-        parsed = await self.parse_intent_tinyllama(prompt_text)
+        parsed = await self.parse_intent(prompt_text)
         parameters = parsed.get("parameters", {})
         if not isinstance(parameters, dict):
             parameters = {}

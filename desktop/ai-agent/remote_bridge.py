@@ -1,5 +1,6 @@
 """Pair the local desktop agent with the web client and route approved commands."""
 import base64
+import hmac
 import json
 import logging
 import threading
@@ -27,10 +28,13 @@ class RemoteAgentBridge:
         server_url: str,
         allowed_origins: set[str],
         on_connection_change: Callable[[bool], None] | None = None,
+        on_voice_stream_change: Callable[[bool], None] | None = None,
     ) -> None:
         self.server_url = self._normalize_server_url(server_url)
         self.allowed_origins = allowed_origins
         self.on_connection_change = on_connection_change
+        self.on_voice_stream_change = on_voice_stream_change
+        self.bridge_token = os.getenv("VEDA_AGENT_BRIDGE_TOKEN", "")
         self.client = socketio.Client(reconnection=False, logger=False, engineio_logger=False)
         self._stop = threading.Event()
         self._credentials_changed = threading.Event()
@@ -47,6 +51,7 @@ class RemoteAgentBridge:
         self.client.on("connect_error", self._handle_connect_error)
         self.client.on("connect", lambda: self._notify_connection_change(True))
         self.client.on("disconnect", lambda: self._notify_connection_change(False))
+        self.client.on("voice_stream_state", self._receive_voice_stream_state)
 
     def _notify_connection_change(self, connected: bool) -> None:
         if self.on_connection_change:
@@ -54,6 +59,17 @@ class RemoteAgentBridge:
                 self.on_connection_change(connected)
             except Exception:
                 logger.exception("Could not notify the widget about the secure connection state.")
+
+    def _receive_voice_stream_state(self, payload: dict) -> None:
+        active = payload.get("active") if isinstance(payload, dict) else None
+        if not isinstance(active, bool):
+            logger.warning("Ignoring malformed voice stream state.")
+            return
+        if self.on_voice_stream_change:
+            try:
+                self.on_voice_stream_change(active)
+            except Exception:
+                logger.exception("Could not notify the widget about the voice stream state.")
 
     def start(self) -> None:
         self._http_thread.start()
@@ -135,7 +151,16 @@ class RemoteAgentBridge:
     def _allow_origin(self, request: BaseHTTPRequestHandler) -> bool:
         host = request.headers.get("Host", "").lower()
         origin = request.headers.get("Origin", "")
-        return host in {"127.0.0.1:8765", "localhost:8765"} and origin in self.allowed_origins
+        if host not in {"127.0.0.1:8765", "localhost:8765"}:
+            return False
+        if origin in self.allowed_origins:
+            return True
+        supplied_token = request.headers.get("X-VEDA-Agent-Token", "")
+        return bool(
+            not origin
+            and self.bridge_token
+            and hmac.compare_digest(supplied_token, self.bridge_token)
+        )
 
     @staticmethod
     def _normalize_server_url(server_url: str) -> str:

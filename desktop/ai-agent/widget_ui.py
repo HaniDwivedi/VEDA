@@ -22,9 +22,11 @@ class NexusWidget(ctk.CTk):
         super().__init__()
         self.secure_connected = False
         self.connection_events = queue.Queue()
+        self.voice_stream_events = queue.Queue()
         self.agent_start_attempted = False
         self.agent_thread = None
         self.closing = False
+        self.voice_stream_active = False
         server_url = os.getenv("VEDA_SERVER_URL", "http://localhost:5000")
         allowed_origins = {
             origin.strip()
@@ -88,6 +90,7 @@ class NexusWidget(ctk.CTk):
             server_url,
             allowed_origins,
             on_connection_change=self.on_secure_connection_change,
+            on_voice_stream_change=self.on_voice_stream_change,
         )
         self.after(200, self.monitor_state)
         self.remote_bridge.start()
@@ -111,17 +114,28 @@ class NexusWidget(ctk.CTk):
     def on_secure_connection_change(self, connected):
         self.connection_events.put(connected)
 
+    def on_voice_stream_change(self, active):
+        self.voice_stream_events.put(active)
+
     def set_secure_connection(self, connected):
         was_connected = self.secure_connected
         self.secure_connected = connected
         if connected and not was_connected:
             self.agent_start_attempted = False
-            self.start_agent_when_connected()
         elif not connected:
+            self.set_voice_streaming(False)
+
+    def set_voice_streaming(self, active):
+        self.voice_stream_active = active and self.secure_connected
+        if self.voice_stream_active:
+            self.start_agent_when_connected()
+        else:
             main.pause_listening()
+            self.agent_start_attempted = False
 
     def start_agent_when_connected(self):
-        if self.closing or not self.secure_connected or self.agent_start_attempted:
+        if self.closing or not self.secure_connected or not self.voice_stream_active or \
+                self.agent_start_attempted:
             return
         if self.agent_thread and self.agent_thread.is_alive():
             self.after(100, self.start_agent_when_connected)
@@ -138,6 +152,11 @@ class NexusWidget(ctk.CTk):
                 self.set_secure_connection(self.connection_events.get_nowait())
             except queue.Empty:
                 break
+        while True:
+            try:
+                self.set_voice_streaming(self.voice_stream_events.get_nowait())
+            except queue.Empty:
+                break
 
         status = main.get_agent_status()
         if not self.secure_connected:
@@ -151,6 +170,10 @@ class NexusWidget(ctk.CTk):
                 self.mic_btn.configure(state="normal", fg_color="#1E3F20")
             else:
                 self.mic_btn.configure(state="disabled", fg_color="#3A3A3A")
+        elif not self.voice_stream_active:
+            self.status_light.configure(text_color="#F39C12")
+            self.status_label.configure(text="Secure | Open /stream for voice", text_color="#F39C12")
+            self.mic_btn.configure(state="disabled", fg_color="#3A3A3A")
         elif not main.is_engine_ready():
             self.status_light.configure(text_color="#F39C12")
             thread_stopped = self.agent_thread and not self.agent_thread.is_alive()

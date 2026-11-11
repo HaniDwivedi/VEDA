@@ -1,4 +1,5 @@
 """Handle Windows text-to-speech and optional Groq speech transcription."""
+import json
 import math
 import os
 import struct
@@ -11,9 +12,12 @@ import pyaudio
 import pyttsx3
 from dotenv import load_dotenv
 from groq import Groq
+from vosk import KaldiRecognizer, Model
 
 APP_DIR = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) \
     else Path(__file__).resolve().parent
+RESOURCE_DIR = Path(getattr(sys, "_MEIPASS", APP_DIR))
+VOSK_MODEL_PATH = RESOURCE_DIR / "model" / "vosk-model-small-en-in-0.4"
 load_dotenv(APP_DIR / ".env")
 
 groq_key = os.getenv("nexus_ear")
@@ -43,7 +47,7 @@ def speak(text: str) -> None:
 
 
 def record_audio(
-    max_duration: int = 30,
+    max_duration: int = 60,
     silence_duration: float = 2.0,
     silence_threshold: int = 500,
 ) -> str:
@@ -98,23 +102,45 @@ def record_audio(
     return temp_path
 
 
-def listen_live_groq(prompt_msg: str = "Speak now...") -> str:
-    """Transcribe one bounded speech recording with Groq Whisper."""
-    print(prompt_msg)
-    if client is None:
-        raise RuntimeError("Set nexus_ear in the desktop .env file to enable cloud speech.")
+def get_groq_client():
+    return client
 
+
+def _transcribe_vosk(audio_path: str) -> str:
+    if not VOSK_MODEL_PATH.is_dir():
+        raise FileNotFoundError(f"Vosk model directory not found: {VOSK_MODEL_PATH}")
+
+    segments = []
+    with wave.open(audio_path, "rb") as wav_file:
+        if wav_file.getnchannels() != CHANNELS or wav_file.getsampwidth() != 2 or \
+                wav_file.getframerate() != RATE:
+            raise ValueError("Recorded audio format is not supported by the local speech model.")
+
+        recognizer = KaldiRecognizer(Model(str(VOSK_MODEL_PATH)), RATE)
+        while data := wav_file.readframes(4000):
+            if recognizer.AcceptWaveform(data):
+                segments.append(json.loads(recognizer.Result()).get("text", ""))
+        segments.append(json.loads(recognizer.FinalResult()).get("text", ""))
+    return " ".join(segment for segment in segments if segment).strip()
+
+
+def listen_live(prompt_msg: str = "Speak now...") -> str:
+    """Transcribe one bounded recording with Groq, falling back to local Vosk."""
+    print(prompt_msg)
     audio_path = record_audio()
     try:
-        with open(audio_path, "rb") as audio_file:
-            transcription = client.audio.transcriptions.create(
-                file=(Path(audio_path).name, audio_file.read()),
-                model="whisper-large-v3",
-                prompt="Nexus, LeetCode, Hinglish, coding, loop, array, scroll down, upar karo, niche karo",
-            )
-        return transcription.text.strip()
-    except Exception as error:
-        raise RuntimeError("Groq speech transcription failed.") from error
+        if client is not None:
+            try:
+                with open(audio_path, "rb") as audio_file:
+                    transcription = client.audio.transcriptions.create(
+                        file=(Path(audio_path).name, audio_file.read()),
+                        model="whisper-large-v3",
+                        prompt="Nexus, LeetCode, Hinglish, coding, loop, array, scroll down, upar karo, niche karo",
+                    )
+                return transcription.text.strip()
+            except Exception as error:
+                print(f"Groq transcription failed; trying local Vosk: {error}", file=sys.stderr)
+        return _transcribe_vosk(audio_path)
     finally:
         if os.path.exists(audio_path):
             os.remove(audio_path)

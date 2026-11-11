@@ -12,7 +12,7 @@ import pyautogui
 from vosk import Model, KaldiRecognizer
 
 # External module internal hooks
-from voice import listen_live_groq, speak  
+from voice import listen_live, speak
 from agent_runtime import AgentRuntime
 
 # Optional AI Analysis Failover Engine
@@ -198,7 +198,7 @@ def run_complex_ai_task(update):
     try:
         update("Listening for your request")
         speak("ji sir ?")
-        user_query = listen_live_groq("🎙️ Heavy Query Active. Speak now...")
+        user_query = listen_live("🎙️ Heavy Query Active. Speak now...")
         
         if user_query and len(user_query.strip()) > 1:
             print(f"🗣️ Advanced Query: {user_query}")

@@ -68,16 +68,21 @@ export default function DesktopHome() {
                   throw new Error("Backend did not provide separate desktop-agent credentials.");
                 }
                 const bridgeUrl = window.VEDA_AGENT_BRIDGE_URL || "http://127.0.0.1:8765";
-                const bridgeResponse = await fetch(`${bridgeUrl}/pair`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    ...pairing.agentTokens,
-                    serverUrl: API_URL
-                  })
-                });
-                if (!bridgeResponse.ok) {
-                  throw new Error(`Local desktop agent pairing failed (${bridgeResponse.status}).`);
+                const pairingData = {
+                  ...pairing.agentTokens,
+                  serverUrl: API_URL
+                };
+                if (window.vedaAgent?.pair) {
+                  await window.vedaAgent.pair(pairingData);
+                } else {
+                  const bridgeResponse = await fetch(`${bridgeUrl}/pair`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(pairingData)
+                  });
+                  if (!bridgeResponse.ok) {
+                    throw new Error(`Local desktop agent pairing failed (${bridgeResponse.status}).`);
+                  }
                 }
                 setAgentBridgeStatus("Desktop agent paired and credentials stored securely.");
               } catch (bridgeError) {
@@ -112,7 +117,7 @@ export default function DesktopHome() {
           <>
             <p>This desktop now has its own device ID and access/refresh tokens.</p>
             <p role="status">{agentBridgeStatus}</p>
-            <a href="/stream">Open paired-device stream</a>
+            <a href="#/stream">Open paired-device stream</a>
           </>
         ) : qrValue ? (
           <>

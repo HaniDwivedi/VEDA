@@ -92,6 +92,7 @@ export default function DesktopStream() {
       setConnectionStatus("Connected; waiting for the phone");
       preparePeerConnection().catch((error) => {
         console.error("WebRTC setup failed:", error);
+        socket.emit("voice_stream_state", { active: false });
         setConnectionStatus(error.message);
       });
     });
@@ -100,6 +101,7 @@ export default function DesktopStream() {
     });
     socket.on("webrtc_peer_ready", () => {
       setMobileConnected(true);
+      socket.emit("voice_stream_state", { active: true });
       setConnectionStatus("Phone connected; screen sharing is ready");
     });
     socket.on("webrtc_signal", handleSignal);
@@ -123,6 +125,7 @@ export default function DesktopStream() {
 
     socket.on("stream_peer_disconnected", () => {
       setMobileConnected(false);
+      socket.emit("voice_stream_state", { active: false });
       setConnectionStatus("Paired device disconnected");
       stopScreenShare(false).catch((error) => {
         console.error("Could not stop the disconnected screen share:", error);
@@ -132,6 +135,7 @@ export default function DesktopStream() {
     socket.connect();
 
     return () => {
+      if (socket.connected) socket.emit("voice_stream_state", { active: false });
       socket.disconnect();
       if (peerRef.current) peerRef.current.close();
       if (screenTrackRef.current && screenTrackRef.current.readyState !== "ended") {

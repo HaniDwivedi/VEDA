@@ -60,12 +60,45 @@ const setupStreamEngine = (io, accessTokenSecret) => {
     if (isDesktopAgent) socket.join(agentRoom);
     socket.emit("stream_ready");
 
+    if (isDesktopAgent) {
+      io.in(roleRoom).fetchSockets().then((peers) => {
+        socket.emit("voice_stream_state", {
+          active: peers.some((peer) => peer.data.voiceStreamActive === true)
+        });
+      }).catch(() => {
+        socket.emit("stream_error", {
+          message: "Could not determine whether the voice stream is active."
+        });
+      });
+    }
+
     socket.on("webrtc_ready", async () => {
       const peers = await io.in(targetRoleRoom).fetchSockets();
       if (peers.length) {
         socket.emit("webrtc_peer_ready");
         socket.to(targetRoleRoom).emit("webrtc_peer_ready");
       }
+    });
+
+    socket.on("voice_stream_state", async (payload) => {
+      if (deviceRole !== "desktop" || isDesktopAgent ||
+          typeof payload?.active !== "boolean") {
+        socket.emit("stream_error", { message: "Invalid voice stream state." });
+        return;
+      }
+
+      if (payload.active) {
+        const peers = await io.in(targetRoleRoom).fetchSockets();
+        if (!peers.some((peer) => peer.data.deviceRole === "mobile")) {
+          socket.emit("stream_error", {
+            message: "A paired phone must be connected before voice commands can start."
+          });
+          return;
+        }
+      }
+
+      socket.data.voiceStreamActive = payload.active;
+      io.to(agentRoom).emit("voice_stream_state", { active: payload.active });
     });
 
     socket.on("webrtc_signal", (signal) => {
@@ -144,6 +177,10 @@ const setupStreamEngine = (io, accessTokenSecret) => {
     });
 
     socket.on("disconnect", () => {
+      if (deviceRole === "desktop" && !isDesktopAgent &&
+          socket.data.voiceStreamActive === true) {
+        io.to(agentRoom).emit("voice_stream_state", { active: false });
+      }
       socket.to(targetRoleRoom).emit("stream_peer_disconnected");
     });
   });

@@ -1,7 +1,7 @@
 {
   "name": "veda-clients",
   "private": true,
-  "version": "1.0.7",
+  "version": "1.0.8",
   "type": "module",
   "main": "desktop/main.cjs",
   "scripts": {
@@ -44,9 +44,16 @@
     },
     "files": [
       "desktop/main.cjs",
+      "desktop/preload.cjs",
       "desktop/dist/**/*",
       "!**/android/build/**",
       "!**/.gradle/**"
+    ],
+    "extraResources": [
+      {
+        "from": "desktop/ai-agent/dist/VEDA-Agent.exe",
+        "to": "agent/VEDA-Agent.exe"
+      }
     ],
     "win": {
       "target": "nsis"
