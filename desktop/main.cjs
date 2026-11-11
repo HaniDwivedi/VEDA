@@ -127,20 +127,35 @@ function startUpdateChecks() {
   setInterval(checkForUpdates, 6 * 60 * 60 * 1000);
 }
 
-app.whenReady().then(() => {
-  startAgentWidget();
-  createWindow();
-  startUpdateChecks();
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (!mainWindow) {
+      createWindow();
+      return;
+    }
 
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
   });
-});
 
-app.on("before-quit", () => {
-  if (agentProcess && !agentProcess.killed) agentProcess.kill();
-});
+  app.whenReady().then(() => {
+    startAgentWidget();
+    createWindow();
+    startUpdateChecks();
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
-});
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  });
+
+  app.on("before-quit", () => {
+    if (agentProcess && !agentProcess.killed) agentProcess.kill();
+  });
+
+  app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") app.quit();
+  });
+}
