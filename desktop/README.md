@@ -10,6 +10,9 @@ before restarting to install it. Production builds use
 `https://veda-kkbd.onrender.com` as their backend by default;
 `VITE_VEDA_SERVER_URL` can override it at build time.
 Vite development mode uses `http://localhost:5000` and does not check for updates.
+On Windows, the installer closes VEDA Desktop and its bundled agent during the
+install phase, after any installation-scope or elevation prompt, then verifies
+that VEDA Desktop has exited before replacing its files.
 
 ## Build locally
 
