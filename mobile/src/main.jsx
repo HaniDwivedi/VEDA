@@ -6,7 +6,59 @@ import { CapacitorUpdater } from "@capgo/capacitor-updater";
 import App from "../app.jsx";
 import { initializeTokenStorage } from "../../shared/token_storage.js";
 
-const root = createRoot(document.getElementById("root"));
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  throw new Error("Mobile app root element #root was not found.");
+}
+const root = createRoot(rootElement);
+
+function StartupStatus({ children, error = false }) {
+  return (
+    <main
+      role={error ? "alert" : "status"}
+      style={{
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center",
+        padding: 24,
+        boxSizing: "border-box",
+        background: "#0f172a",
+        color: "#f8fafc",
+        fontFamily: "Inter, Segoe UI, sans-serif",
+        textAlign: "center"
+      }}
+    >
+      {children}
+    </main>
+  );
+}
+
+class AppErrorBoundary extends React.Component {
+  state = { error: null };
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error) {
+    console.error("Mobile app rendering failed:", error);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <StartupStatus error>
+          <div>
+            <h1>VEDA could not open</h1>
+            <p>{this.state.error.message || "An unexpected app error occurred."}</p>
+            <p>Please close and reopen the app. If this continues, reinstall or update it.</p>
+          </div>
+        </StartupStatus>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function UpdaterReady() {
   useEffect(() => {
@@ -20,20 +72,31 @@ function UpdaterReady() {
   return null;
 }
 
-initializeTokenStorage().then(() => {
-  root.render(
-    <React.StrictMode>
-      <>
-        <App />
-        <UpdaterReady />
-      </>
-    </React.StrictMode>
-  );
-}).catch((error) => {
-  console.error("Could not initialize secure authentication storage:", error);
-  root.render(
-    <main role="alert" style={{ padding: 24 }}>
-      VEDA could not start secure token storage. Please reinstall or update the app.
-    </main>
-  );
-});
+root.render(<StartupStatus>Starting VEDA...</StartupStatus>);
+
+initializeTokenStorage()
+  .then(() => {
+    root.render(
+      <React.StrictMode>
+        <AppErrorBoundary>
+          <>
+            <App />
+            <UpdaterReady />
+          </>
+        </AppErrorBoundary>
+      </React.StrictMode>
+    );
+  })
+  .catch((error) => {
+    console.error("Could not initialize secure authentication storage:", error);
+    root.render(
+      <StartupStatus error>
+        <div>
+          <h1>VEDA could not start</h1>
+          <p>Secure token storage failed to initialize.</p>
+          <p>{error.message}</p>
+          <p>Please update or reinstall the app.</p>
+        </div>
+      </StartupStatus>
+    );
+  });
