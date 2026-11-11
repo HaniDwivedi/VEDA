@@ -62,6 +62,30 @@ export default function Home() {
     }
   };
 
+  useEffect(() => {
+    // यूजर से कैमरे की परमिशन मांगना
+    async function requestCameraPermission() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: "environment" } // पीछे वाला कैमरा चालू करने के लिए
+        });
+        
+        // अगर परमिशन मिल गई, तो स्ट्रीम को बंद कर दें ताकि QRScanner अपना काम कर सके
+        stream.getTracks().forEach(track => track.stop());
+        setHasPermission(true);
+      } catch (err) {
+        console.error("Camera permission denied:", err);
+        onError("कैमरा की अनुमति (Permission) नहीं मिली। कृपया सेटिंग्स में जाकर परमिशन दें।");
+      }
+    }
+
+    requestCameraPermission();
+  }, [onError]);
+
+  if (!hasPermission) {
+    return <p>कैमरा परमिशन का इंतज़ार है...</p>;
+  }
+
   if (tokens.accessToken && tokens.refreshToken) {
     return (
       <main style={styles.page}>
