@@ -64,6 +64,18 @@ export default function Home() {
     setError(message);
   }, []);
 
+  if (isScanning) {
+    return (
+      <main style={styles.scanningPage}>
+        <QRScanner
+          onScan={handleScan}
+          onError={handleScanError}
+          onCancel={() => setIsScanning(false)}
+        />
+      </main>
+    );
+  }
+
   const disconnect = async () => {
     try {
       await clearTokens();
@@ -97,9 +109,7 @@ export default function Home() {
       <section style={styles.card}>
         <h1>Pair with VEDA Desktop</h1>
         <p>Scan the one-time QR code shown on the desktop.</p>
-        {isScanning
-          ? <QRScanner onScan={handleScan} onError={handleScanError} />
-          : <button onClick={() => { setError(""); setIsScanning(true); }}>Scan desktop QR</button>}
+        <button onClick={() => { setError(""); setIsScanning(true); }}>Scan desktop QR</button>
         {error && <p role="alert" style={styles.error}>{error}</p>}
         <BackendSettings />
       </section>
@@ -108,6 +118,14 @@ export default function Home() {
 }
 
 const styles = {
+  scanningPage: {
+    position: "fixed",
+    inset: 0,
+    minHeight: "100vh",
+    background: "transparent",
+    color: "#f8fafc",
+    fontFamily: "Inter, Segoe UI, sans-serif"
+  },
   page: {
     minHeight: "100vh",
     display: "grid",

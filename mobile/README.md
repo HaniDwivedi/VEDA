@@ -9,11 +9,12 @@ debug APK on Windows:
 3. From the project root, run `npm install` and `npm run android:debug`.
 4. Install `android/app/build/outputs/apk/debug/app-debug.apk` with
    `adb install -r android/app/build/outputs/apk/debug/app-debug.apk`.
-5. On first launch, enter the deployed backend's HTTPS origin in **Backend
-   URL**, save it, and pair by scanning the desktop's one-time QR code.
+5. On first launch, ensure the phone and desktop use the same deployed
+   backend's HTTPS origin in **Backend URL**, then pair by scanning the
+   desktop's one-time QR code.
 
-The QR scanner uses the native Android barcode scanner when Google Play
-Services provides it and falls back to the in-app camera scanner otherwise.
+The QR scanner uses the native in-app Android camera scanner and falls back to
+the in-app browser camera scanner on other platforms.
 Screen viewing and chat need a reachable deployed backend; screen sharing is
 started only from the desktop browser.
 

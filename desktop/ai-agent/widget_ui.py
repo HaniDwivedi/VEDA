@@ -210,7 +210,7 @@ def run_backend():
         main.report_engine_failure(error)
 
 if __name__ == "__main__":
-    print("🚀 Starting Nexus with Floating Widget...")
+    print("Starting Nexus with Floating Widget...")
     # CustomTkinter UI loop block window initialize
     app = NexusWidget()
     app.mainloop()

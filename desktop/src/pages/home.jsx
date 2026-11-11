@@ -18,6 +18,7 @@ export default function DesktopHome() {
   const [paired, setPaired] = useState(false);
   const [error, setError] = useState("");
   const [agentBridgeStatus, setAgentBridgeStatus] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -34,11 +35,16 @@ export default function DesktopHome() {
             deviceId: getDeviceId(),
             deviceName: navigator.userAgent || "VEDA Desktop"
           })
+        }).catch((error) => {
+          throw new Error(
+            `Could not reach the backend at ${API_URL}. Check that it is online and allows this app's origin. ${error.message}`
+          );
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "Could not create pairing QR.");
         if (!active) return;
 
+        setError("");
         pairingToken = data.pairingToken;
         setQrValue(data.qrValue);
         expiryTimer = window.setTimeout(() => {
@@ -53,7 +59,10 @@ export default function DesktopHome() {
             const result = await fetch(`${API_URL}/api/pairing/status`, {
               headers: { Authorization: `Bearer ${pairingToken}` }
             });
-            if (result.status === 204) return;
+            if (result.status === 204) {
+              if (active) setError("");
+              return;
+            }
             const pairing = await result.json();
             if (!result.ok) throw new Error(pairing.error || "Pairing status failed.");
             localStorage.setItem("gat", pairing.tokens.accessToken);
@@ -92,9 +101,13 @@ export default function DesktopHome() {
               }
             }
           } catch (pollError) {
-            if (active) setError(pollError.message);
+            if (active) {
+              setError(
+                `Could not reach the backend at ${API_URL}; pairing will retry. ${pollError.message}`
+              );
+            }
           }
-        }, 1500);
+        }, 3000);
       } catch (requestError) {
         if (active) setError(requestError.message);
       }
@@ -106,7 +119,7 @@ export default function DesktopHome() {
       window.clearInterval(pollTimer);
       window.clearTimeout(expiryTimer);
     };
-  }, []);
+  }, [retryCount]);
 
   return (
     <main style={styles.page}>
@@ -132,6 +145,11 @@ export default function DesktopHome() {
         )}
         <BackendSettings />
         {error && <p role="alert" style={styles.error}>{error}</p>}
+        {error && !qrValue && !paired && (
+          <button onClick={() => { setError(""); setRetryCount((count) => count + 1); }}>
+            Retry connection
+          </button>
+        )}
       </section>
     </main>
   );

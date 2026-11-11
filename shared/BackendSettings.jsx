@@ -31,9 +31,9 @@ export default function BackendSettings() {
     <details style={styles.details}>
       <summary>Advanced: Backend connection</summary>
       <p style={styles.description}>
-        Most users can leave this unchanged. It tells VEDA which server handles
-        pairing, chat, and screen streaming. Change it only when using your own
-        backend or when your administrator gives you a different URL.
+        The phone and desktop must use the same backend URL, reachable from both
+        devices, to pair and exchange data. On a phone, localhost refers to the
+        phone itself. Most users can leave this unchanged.
       </p>
       <form onSubmit={save} style={styles.form}>
         <label htmlFor="veda-server-url">Backend URL</label>

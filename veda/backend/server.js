@@ -7,7 +7,7 @@ const express = require("express");
 const http = require("http");
 const helmet = require("helmet");
 const jwt = require("jsonwebtoken");
-const { rateLimit } = require("express-rate-limit");
+const { ipKeyGenerator, rateLimit } = require("express-rate-limit");
 const { createAdapter } = require("@socket.io/redis-adapter");
 const { Server } = require("socket.io");
 const {
@@ -79,12 +79,13 @@ app.use(cors(corsOptions));
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: "32kb" }));
 
-const createRateLimiter = (limit, message) => rateLimit({
+const createRateLimiter = (limit, message, keyGenerator) => rateLimit({
   windowMs: 15 * 60 * 1000,
   limit,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  message: { error: message }
+  message: { error: message },
+  ...(keyGenerator ? { keyGenerator } : {})
 });
 
 app.get("/healthz", (_request, response) => {
@@ -132,7 +133,16 @@ app.post("/api/pairing/scan", async (request, response, next) => {
   }
 });
 
-app.use("/api/pairing/status", createRateLimiter(60, "Too many pairing status requests."));
+app.use("/api/pairing/status", createRateLimiter(
+  400,
+  "Too many pairing status requests.",
+  (request) => {
+    const authorization = request.get("authorization") || "";
+    const match = authorization.match(/^Bearer\s+(\S+)$/i);
+    if (!match) return `ip:${ipKeyGenerator(request.ip)}`;
+    return `pairing:${crypto.createHash("sha256").update(match[1]).digest("hex")}`;
+  }
+));
 app.get("/api/pairing/status", async (request, response, next) => {
   try {
     const authorization = request.get("authorization") || "";

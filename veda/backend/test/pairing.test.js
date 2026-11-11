@@ -70,6 +70,10 @@ const waitForEvent = (socket, eventName) => {
   });
 };
 
+const pairingAuthorization = (token) => ({
+  Authorization: ["Bearer", token].join(" ")
+});
+
 test("pairs devices, rotates tokens, and routes packets to the opposite role", async () => {
   const qrResponse = await fetch(`${serverUrl}/api/pairing/qr`, {
     method: "POST",
@@ -119,6 +123,13 @@ test("pairs devices, rotates tokens, and routes packets to the opposite role", a
     headers: { Authorization: `Bearer ${qr.pairingToken}` }
   });
   assert.equal(secondPoll.status, 204);
+
+  const repeatedPolls = await Promise.all(
+    Array.from({ length: 75 }, () => fetch(`${serverUrl}/api/pairing/status`, {
+      headers: pairingAuthorization(qr.pairingToken)
+    }))
+  );
+  assert.ok(repeatedPolls.every((response) => response.status === 204));
 
   const rtcResponse = await fetch(`${serverUrl}/api/rtc-config`, {
     headers: { Authorization: `Bearer ${mobile.tokens.accessToken}` }

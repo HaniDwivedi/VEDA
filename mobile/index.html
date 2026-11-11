@@ -10,6 +10,12 @@
       content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https: wss: http://localhost:* ws://localhost:*"
     />
     <title>VEDA Mobile</title>
+    <style>
+      html, body, #root { min-height: 100%; }
+      body.barcode-scanner-active, body.barcode-scanner-active #root {
+        background: transparent !important;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
