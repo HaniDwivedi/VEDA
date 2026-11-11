@@ -1,0 +1,7 @@
+@import "tailwindcss";
+@source "../webui.jsx";
+
+body {
+  margin: 0;
+  background: #050505;
+}

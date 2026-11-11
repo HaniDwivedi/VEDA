@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">VEDA Controller</string>
+    <string name="title_activity_main">VEDA Controller</string>
+    <string name="package_name">com.veda.controller</string>
+    <string name="custom_url_scheme">com.veda.controller</string>
+</resources>

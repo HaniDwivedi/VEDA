@@ -94,7 +94,7 @@ jobs:
           generate_release_notes: true
           overwrite_files: true
           files: |
-            desktop/release/VEDA-Desktop-Setup-*.exe
-            desktop/release/VEDA-Desktop-Setup-*.exe.blockmap
+            desktop/release/VEDA-Desktop-Setup.exe
+            desktop/release/VEDA-Desktop-Setup.exe.blockmap
             desktop/release/latest.yml
             android/app/build/outputs/apk/debug/app-debug.apk

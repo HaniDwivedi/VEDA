@@ -1,0 +1,29 @@
+{
+  "name": "veda-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "VEDA QR pairing, device authentication, and Socket.IO signaling server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node --check services/stream/stream_engine.js && node --check services/ORAuth/qrgenerator.js && node --check services/ORAuth/qr_validate.js && node --check services/ORAuth/qr_token_manager.js && node --check services/tokenmanager/refreshtoken.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.1"
+  },
+  "dependencies": {
+    "@socket.io/redis-adapter": "^8.3.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.7.3",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.2",
+    "redis": "^4.7.0",
+    "socket.io": "^4.8.1"
+  }
+}

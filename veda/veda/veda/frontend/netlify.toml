@@ -1,0 +1,10 @@
+# Build the landing page from this directory and publish the Vite output.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[[redirects]]
+  from = "/downloads/veda-mobile.apk"
+  to = "https://github.com/HaniDwivedi/VEDA/releases/latest/download/app-debug.apk"
+  status = 302
+  force = true

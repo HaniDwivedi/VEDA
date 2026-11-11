@@ -1,0 +1,71 @@
+{
+  "name": "veda-clients",
+  "private": true,
+  "version": "1.0.11",
+  "type": "module",
+  "main": "desktop/main.cjs",
+  "scripts": {
+    "dev:desktop": "vite --config desktop/vite.config.js",
+    "dev:mobile": "vite --config mobile/vite.config.js",
+    "build:desktop": "vite build --config desktop/vite.config.js",
+    "start:desktop": "npm run build:desktop && electron .",
+    "build:desktop:installer": "npm run build:desktop && electron-builder --win nsis --publish never",
+    "release:desktop": "npm run build:desktop && electron-builder --win nsis --publish always",
+    "build:mobile": "vite build --config mobile/vite.config.js",
+    "android:sync": "npm run build:mobile && cap sync android",
+    "android:debug": "npm run android:sync && node android/build-debug.mjs"
+  },
+  "dependencies": {
+    "@aparajita/capacitor-secure-storage": "^7.1.6",
+    "@capacitor-mlkit/barcode-scanning": "^7.5.0",
+    "@capacitor/android": "^7.6.10",
+    "@capacitor/core": "^7.6.10",
+    "@capgo/capacitor-updater": "^7.53.0",
+    "@zxing/browser": "^0.1.5",
+    "electron-updater": "^6.6.2",
+    "qrcode.react": "^4.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.6.10",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^41.0.0",
+    "electron-builder": "^26.0.12",
+    "vite": "^6.0.0"
+  },
+  "build": {
+    "appId": "com.veda.desktop",
+    "productName": "VEDA Desktop",
+    "artifactName": "VEDA-Desktop-Setup-${version}.${ext}",
+    "directories": {
+      "output": "desktop/release"
+    },
+    "files": [
+      "desktop/main.cjs",
+      "desktop/preload.cjs",
+      "desktop/dist/**/*",
+      "!**/android/build/**",
+      "!**/.gradle/**"
+    ],
+    "extraResources": [
+      {
+        "from": "desktop/ai-agent/dist/VEDA-Agent.exe",
+        "to": "agent/VEDA-Agent.exe"
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "include": "desktop/installer.nsh"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "HaniDwivedi",
+      "repo": "VEDA",
+      "releaseType": "release"
+    }
+  }
+}
