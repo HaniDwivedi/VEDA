@@ -38,7 +38,7 @@
   "build": {
     "appId": "com.veda.desktop",
     "productName": "VEDA Desktop",
-    "artifactName": "VEDA-Desktop-Setup-${version}.${ext}",
+    "artifactName": "VEDA-Desktop-Setup.${ext}",
     "directories": {
       "output": "desktop/release"
     },
