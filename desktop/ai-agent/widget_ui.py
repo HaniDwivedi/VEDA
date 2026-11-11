@@ -4,6 +4,11 @@ import queue
 import sys
 from pathlib import Path
 
+for stream in (sys.stdout, sys.stderr):
+    reconfigure = getattr(stream, "reconfigure", None)
+    if reconfigure:
+        reconfigure(encoding="utf-8", errors="replace")
+
 import customtkinter as ctk
 import threading
 from dotenv import load_dotenv

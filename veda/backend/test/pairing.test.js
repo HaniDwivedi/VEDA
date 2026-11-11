@@ -6,6 +6,7 @@ const { io: connectSocket } = require("socket.io-client");
 
 process.env.ACCESS_TOKEN_SECRET = "test-access-secret-at-least-thirty-two-characters";
 process.env.REFRESH_TOKEN_SECRET = "test-refresh-secret-at-least-thirty-two-characters";
+process.env.CLIENT_ORIGINS = "https://app.example";
 
 const { io, server } = require("../server");
 const { redisClient } = require("../services/ORAuth/qrgenerator");
@@ -243,4 +244,19 @@ test("reports Redis readiness and limits public QR creation", async () => {
     body: JSON.stringify({ deviceId: "limited-overflow", deviceName: "Desktop" })
   });
   assert.equal(limitedResponse.status, 429);
+});
+
+test("allows the Capacitor origin alongside configured web origins", async () => {
+  for (const origin of ["https://localhost", "https://app.example"]) {
+    const response = await fetch(`${serverUrl}/api/pairing/scan`, {
+      method: "OPTIONS",
+      headers: {
+        Origin: origin,
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "content-type"
+      }
+    });
+    assert.equal(response.status, 204);
+    assert.equal(response.headers.get("access-control-allow-origin"), origin);
+  }
 });

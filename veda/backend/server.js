@@ -37,14 +37,19 @@ if (Boolean(turnUrls.length) !== Boolean(turnSharedSecret)) {
   throw new Error("Set both TURN_URLS and TURN_SHARED_SECRET, or leave both unset.");
 }
 
-const allowedOrigins = (process.env.CLIENT_ORIGINS ||
-  "http://localhost:3000,http://localhost:5173,http://localhost:5174,https://localhost")
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+const allowedOrigins = new Set([
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "https://localhost",
+  ...(process.env.CLIENT_ORIGINS || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+]);
 const corsOptions = {
   origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.has(origin)) {
       callback(null, true);
       return;
     }

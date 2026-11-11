@@ -7,6 +7,12 @@ import time
 import re
 import subprocess
 import threading
+
+for stream in (sys.stdout, sys.stderr):
+    reconfigure = getattr(stream, "reconfigure", None)
+    if reconfigure:
+        reconfigure(encoding="utf-8", errors="replace")
+
 import sounddevice as sd
 import pyautogui
 from vosk import Model, KaldiRecognizer

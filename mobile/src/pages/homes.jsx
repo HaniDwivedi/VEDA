@@ -26,14 +26,21 @@ export default function Home() {
         localStorage.setItem("veda-device-id", deviceId);
       }
 
-      const response = await fetch(`${API_URL}/api/pairing/scan`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rawScanData: qrValue,
-          clientInfo: await fetchClientMetadata(deviceId)
-        })
-      });
+      let response;
+      try {
+        response = await fetch(`${API_URL}/api/pairing/scan`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rawScanData: qrValue,
+            clientInfo: await fetchClientMetadata(deviceId)
+          })
+        });
+      } catch (requestError) {
+        throw new Error(
+          `Could not reach the backend at ${API_URL}. Check the server, network connection, and allowed web origins (CLIENT_ORIGINS). ${requestError.message}`
+        );
+      }
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not pair this device.");
 
@@ -52,6 +59,11 @@ export default function Home() {
     }
   }, []);
 
+  const handleScanError = useCallback((message) => {
+    setIsScanning(false);
+    setError(message);
+  }, []);
+
   const disconnect = async () => {
     try {
       await clearTokens();
@@ -61,30 +73,6 @@ export default function Home() {
       setError(`Could not securely remove paired credentials: ${requestError.message}`);
     }
   };
-
-  useEffect(() => {
-    // यूजर से कैमरे की परमिशन मांगना
-    async function requestCameraPermission() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: "environment" } // पीछे वाला कैमरा चालू करने के लिए
-        });
-        
-        // अगर परमिशन मिल गई, तो स्ट्रीम को बंद कर दें ताकि QRScanner अपना काम कर सके
-        stream.getTracks().forEach(track => track.stop());
-        setHasPermission(true);
-      } catch (err) {
-        console.error("Camera permission denied:", err);
-        onError("कैमरा की अनुमति (Permission) नहीं मिली। कृपया सेटिंग्स में जाकर परमिशन दें।");
-      }
-    }
-
-    requestCameraPermission();
-  }, [onError]);
-
-  if (!hasPermission) {
-    return <p>कैमरा परमिशन का इंतज़ार है...</p>;
-  }
 
   if (tokens.accessToken && tokens.refreshToken) {
     return (
@@ -110,7 +98,7 @@ export default function Home() {
         <h1>Pair with VEDA Desktop</h1>
         <p>Scan the one-time QR code shown on the desktop.</p>
         {isScanning
-          ? <QRScanner onScan={handleScan} onError={setError} />
+          ? <QRScanner onScan={handleScan} onError={handleScanError} />
           : <button onClick={() => { setError(""); setIsScanning(true); }}>Scan desktop QR</button>}
         {error && <p role="alert" style={styles.error}>{error}</p>}
         <BackendSettings />

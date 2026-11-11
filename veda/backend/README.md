@@ -14,14 +14,14 @@ rooms across backend instances.
 2. Install dependencies with `npm install`.
 3. Start the server with `npm start`; check `GET /healthz` for readiness.
 
-`CLIENT_ORIGINS` is a comma-separated allowlist for the desktop and mobile
-client origins; include the deployed desktop origin and keep `https://localhost`
-for the Capacitor Android WebView. `PORT` defaults to `5000`. Set `TRUST_PROXY` only to the
-exact trusted proxy hop count or address range used by the deployment;
-never trust arbitrary forwarded headers. Pairing and token endpoints have
-per-IP request limits, and HTTP security headers are enabled. `STUN_URL` is
-optional. Configure both `TURN_URLS` and `TURN_SHARED_SECRET` to issue
-short-lived TURN credentials; leave both empty to use STUN only.
+`CLIENT_ORIGINS` is a comma-separated allowlist for deployed browser client
+origins. Local development origins, including `https://localhost` for the
+Capacitor Android WebView, are always allowed. `PORT` defaults to `5000`. Set
+`TRUST_PROXY` only to the exact trusted proxy hop count or address range used by
+the deployment; never trust arbitrary forwarded headers. Pairing and token
+endpoints have per-IP request limits, and HTTP security headers are enabled.
+`STUN_URL` is optional. Configure both `TURN_URLS` and `TURN_SHARED_SECRET` to
+issue short-lived TURN credentials; leave both empty to use STUN only.
 
 ## Render deployment
 
@@ -39,7 +39,7 @@ Add these environment variables in the Render dashboard:
 | `ACCESS_TOKEN_SECRET` | Yes | A unique random secret with at least 32 characters. |
 | `REFRESH_TOKEN_SECRET` | Yes | A different unique random secret with at least 32 characters. |
 | `REDIS_URL` | Yes | The private connection URL of a persistent Redis-compatible service reachable by the web service. |
-| `CLIENT_ORIGINS` | Yes | Comma-separated exact origins of deployed browser clients, plus `https://localhost` for the Capacitor Android WebView. |
+| `CLIENT_ORIGINS` | Yes | Comma-separated exact origins of deployed browser clients. Local development and Capacitor origins are allowed automatically. |
 | `TRUST_PROXY` | Recommended | `1` when using Render's standard single trusted proxy hop. |
 | `TURN_URLS` | Optional | Comma-separated TURN server URLs; configure together with `TURN_SHARED_SECRET`. |
 | `TURN_SHARED_SECRET` | Optional | Secret shared with the TURN provider; configure together with `TURN_URLS`. |
