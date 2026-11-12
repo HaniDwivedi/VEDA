@@ -1,5 +1,5 @@
 !macro vedaCheckProcess IMAGE RETURN
-  nsExec::Exec `"$SYSDIR\cmd.exe" /C tasklist /FI "IMAGENAME eq ${IMAGE}" /FO CSV /NH | "$SYSDIR\findstr.exe" /B /I /C:"\"${IMAGE}\""`
+  nsExec::Exec `"$SYSDIR\cmd.exe" /C tasklist /FI "IMAGENAME eq ${IMAGE}" /FO TABLE /NH | "$SYSDIR\findstr.exe" /B /I /C:"${IMAGE}"`
   Pop ${RETURN}
 !macroend
 
