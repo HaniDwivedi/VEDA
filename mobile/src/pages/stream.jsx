@@ -22,7 +22,7 @@ export default function MobileStream() {
     }
 
     // 1. WebSocket connection setup with auth token
-    const socket = createAuthenticatedSocket({ transports: ["websocket"] });
+    const socket = createAuthenticatedSocket();
     socketRef.current = socket;
 
     const applyPendingCandidates = async (peer) => {
@@ -154,22 +154,41 @@ export default function MobileStream() {
     setAgentResponse("Command sent to desktop...");
   };
 
-  const handleVoiceListen = () => {
+  const handleVoiceListen = async () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       setAgentResponse("Speech recognition is not supported in this browser.");
       return;
     }
-    const recognition = new SpeechRecognition();
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      setVoiceCommand(transcript);
-      sendAgentCommand(transcript);
-    };
-    recognition.onerror = (event) => {
-      setAgentResponse(`Voice recognition failed: ${event.error}`);
-    };
-    recognition.start();
+
+    let microphoneStream;
+    try {
+      if (navigator.mediaDevices?.getUserMedia) {
+        microphoneStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        microphoneStream.getTracks().forEach((track) => track.stop());
+        microphoneStream = undefined;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setVoiceCommand(transcript);
+        sendAgentCommand(transcript);
+      };
+      recognition.onerror = (event) => {
+        const message = ["not-allowed", "service-not-allowed"].includes(event.error)
+          ? "Microphone access was denied. Allow microphone permission for VEDA in Android settings and try again."
+          : `Voice recognition failed: ${event.error}`;
+        setAgentResponse(message);
+      };
+      recognition.start();
+    } catch (error) {
+      microphoneStream?.getTracks().forEach((track) => track.stop());
+      const denied = error.name === "NotAllowedError" || error.name === "SecurityError";
+      setAgentResponse(denied
+        ? "Microphone access was denied. Allow microphone permission for VEDA in Android settings and try again."
+        : `Could not start voice recognition: ${error.message}`);
+    }
   };
 
   return (
