@@ -1,6 +1,7 @@
 // Select the desktop pairing screen or the incoming-device stream screen.
 import React, { useEffect, useState } from "react";
 import DesktopHome from "./src/pages/home.jsx";
+import Chat from "./src/pages/chat.jsx";
 import DesktopStream from "./src/pages/stream.jsx";
 
 export default function App() {
@@ -12,5 +13,7 @@ export default function App() {
     return () => window.removeEventListener("hashchange", updatePath);
   }, []);
 
-  return path === "/stream" ? <DesktopStream /> : <DesktopHome />;
+  if (path === "/stream") return <DesktopStream />;
+  if (path === "/chat") return <Chat />;
+  return <DesktopHome />;
 }

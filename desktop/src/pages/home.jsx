@@ -130,7 +130,10 @@ export default function DesktopHome() {
           <>
             <p>This desktop now has its own device ID and access/refresh tokens.</p>
             <p role="status">{agentBridgeStatus}</p>
-            <a href="#/stream">Open paired-device stream</a>
+            <nav style={styles.links}>
+              <a href="#/stream">Open paired-device stream</a>
+              <a href="#/chat">Open device chat</a>
+            </nav>
           </>
         ) : qrValue ? (
           <>
@@ -174,6 +177,7 @@ const styles = {
     background: "rgba(15, 23, 42, .94)",
     boxShadow: "0 24px 80px rgba(0, 0, 0, .35)"
   },
+  links: { display: "flex", justifyContent: "center", gap: 20, flexWrap: "wrap" },
   eyebrow: { color: "#a5b4fc", letterSpacing: 2, fontSize: 12, fontWeight: 700 },
   qr: { display: "inline-flex", padding: 14, background: "#fff", borderRadius: 12 },
   muted: { color: "#94a3b8", fontSize: 14 },

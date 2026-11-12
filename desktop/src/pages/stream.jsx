@@ -23,9 +23,7 @@ export default function DesktopStream() {
       return undefined;
     }   
 
-    const socket = createAuthenticatedSocket({
-      transports: ["websocket"]
-    });
+    const socket = createAuthenticatedSocket();
     socketRef.current = socket;
 
     const stopScreenShare = async (updateStatus = true) => {

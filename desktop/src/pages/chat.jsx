@@ -16,9 +16,7 @@ export default function Chat() {
       return undefined;
     }
 
-    const socket = createAuthenticatedSocket({
-      transports: ['websocket']
-    });
+    const socket = createAuthenticatedSocket();
     socketRef.current = socket;
 
     socket.on('connect', () => {

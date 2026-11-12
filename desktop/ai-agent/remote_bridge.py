@@ -3,6 +3,7 @@ import base64
 import hmac
 import json
 import logging
+import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -255,7 +256,6 @@ class RemoteAgentBridge:
                 self.client.connect(
                     self.server_url,
                     auth={"token": access_token, "clientType": "desktop-agent"},
-                    transports=["websocket"],
                     wait_timeout=10,
                 )
                 self.client.wait()
