@@ -258,7 +258,11 @@ test("reports Redis readiness and limits public QR creation", async () => {
 });
 
 test("allows the Capacitor origin alongside configured web origins", async () => {
-  for (const origin of ["https://localhost", "https://app.example"]) {
+  for (const origin of [
+    "https://localhost",
+    "capacitor://localhost",
+    "https://app.example"
+  ]) {
     const response = await fetch(`${serverUrl}/api/pairing/scan`, {
       method: "OPTIONS",
       headers: {

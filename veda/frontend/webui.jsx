@@ -113,7 +113,7 @@ export default function WebUI() {
             {/* Android APK Download */}
             <a
               id="android-download"
-              href="https://github.com/HaniDwivedi/VEDA/releases/latest/download/app-debug.apk"
+              href="/downloads/veda-mobile.apk"
               className="group relative flex items-center justify-center gap-3 w-full sm:w-auto px-8 py-4 bg-gray-900 border border-gray-700 rounded-2xl font-semibold transition-all duration-300 hover:border-pink-400 hover:-translate-y-1"
             >
               <svg className="w-6 h-6 text-gray-300 group-hover:text-pink-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -15,8 +15,8 @@ rooms across backend instances.
 3. Start the server with `npm start`; check `GET /healthz` for readiness.
 
 `CLIENT_ORIGINS` is a comma-separated allowlist for deployed browser client
-origins. Local development origins, including `https://localhost` for the
-Capacitor Android WebView, are always allowed. `PORT` defaults to `5000`. Set
+origins. Local development origins and Capacitor WebView origins
+(`https://localhost` and `capacitor://localhost`) are always allowed. `PORT` defaults to `5000`. Set
 `TRUST_PROXY` only to the exact trusted proxy hop count or address range used by
 the deployment; never trust arbitrary forwarded headers. Pairing and token
 endpoints have per-IP request limits, and HTTP security headers are enabled.
