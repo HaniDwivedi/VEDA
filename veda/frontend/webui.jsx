@@ -1,7 +1,45 @@
 // Render the VEDA landing page and report APK generation only when backend supports it.
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 export default function WebUI() {
+  const [latestReleaseTag, setLatestReleaseTag] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("https://api.github.com/repos/HaniDwivedi/VEDA/releases/latest", {
+      headers: { Accept: "application/vnd.github+json" },
+      signal: controller.signal
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error(`GitHub release lookup failed (${response.status}).`);
+        return response.json();
+      })
+      .then((release) => {
+        if (typeof release.tag_name !== "string" || !release.tag_name) {
+          throw new Error("The latest GitHub release has no tag.");
+        }
+        setLatestReleaseTag(release.tag_name);
+      })
+      .catch((error) => {
+        if (error.name !== "AbortError") {
+          console.error("Could not load the latest VEDA release:", error);
+        }
+      });
+
+    return () => controller.abort();
+  }, []);
+
+  const releaseTagPath = latestReleaseTag
+    ? `/releases/download/${encodeURIComponent(latestReleaseTag)}`
+    : "/releases/latest/download";
+  const desktopDownloadUrl = `https://github.com/HaniDwivedi/VEDA${releaseTagPath}/VEDA-Desktop-Setup.exe`;
+  const mobileDownloadUrl = latestReleaseTag
+    ? `https://github.com/HaniDwivedi/VEDA${releaseTagPath}/app-debug.apk`
+    : "/downloads/veda-mobile.apk";
+  const releaseLabel = latestReleaseTag
+    ? `Latest release ${latestReleaseTag}`
+    : "Latest release";
+
   return (
     <div className="relative min-h-screen bg-[#050505] text-white overflow-x-hidden">
       <style>{`
@@ -98,14 +136,14 @@ export default function WebUI() {
             {/* Desktop Download */}
             <a
               id="desktop-download"
-              href="https://github.com/HaniDwivedi/VEDA/releases/latest/download/VEDA-Desktop-Setup.exe"
+              href={desktopDownloadUrl}
               className="group relative flex items-center justify-center gap-3 w-full sm:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-2xl font-semibold transition-all duration-300 shadow-[0_0_20px_rgba(79,70,229,0.4)] hover:shadow-[0_0_30px_rgba(79,70,229,0.7)] hover:-translate-y-1"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
               </svg>
               <div className="flex flex-col items-start text-left">
-                <span className="text-[10px] uppercase tracking-wider opacity-75 leading-none">Latest release</span>
+                <span className="text-[10px] uppercase tracking-wider opacity-75 leading-none">{releaseLabel}</span>
                 <span className="text-lg leading-tight">Windows x64 (.exe)</span>
               </div>
             </a>
@@ -113,14 +151,14 @@ export default function WebUI() {
             {/* Android APK Download */}
             <a
               id="android-download"
-              href="/downloads/veda-mobile.apk"
+              href={mobileDownloadUrl}
               className="group relative flex items-center justify-center gap-3 w-full sm:w-auto px-8 py-4 bg-gray-900 border border-gray-700 rounded-2xl font-semibold transition-all duration-300 hover:border-pink-400 hover:-translate-y-1"
             >
               <svg className="w-6 h-6 text-gray-300 group-hover:text-pink-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
               </svg>
               <div className="flex flex-col items-start text-left">
-                <span className="text-[10px] uppercase tracking-wider opacity-75 leading-none text-gray-400">Latest release</span>
+                <span className="text-[10px] uppercase tracking-wider opacity-75 leading-none text-gray-400">{releaseLabel}</span>
                 <span className="text-lg leading-tight text-white">Android APK (.apk)</span>
               </div>
             </a>

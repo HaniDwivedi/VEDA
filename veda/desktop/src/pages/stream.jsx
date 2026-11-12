@@ -147,7 +147,7 @@ export default function DesktopStream() {
   const startScreenShare = async () => {
     if (!mobileConnected || !peerRef.current || isSharingScreen) return;
     if (!navigator.mediaDevices?.getDisplayMedia) {
-      setConnectionStatus("Screen sharing is not supported by this browser.");
+      setConnectionStatus("Screen sharing is unavailable in this Electron runtime. Update VEDA Desktop and try again.");
       return;
     }
 
@@ -192,12 +192,20 @@ export default function DesktopStream() {
       setIsSharingScreen(true);
       setConnectionStatus("Sharing screen with the paired phone");
     } catch (error) {
-      if (error.name === "NotAllowedError") {
+      if (error.name === "NotAllowedError" || error.name === "AbortError") {
         setConnectionStatus("Screen sharing was cancelled.");
         return;
       }
+      if (error.name === "NotFoundError") {
+        setConnectionStatus("No display is available to share. Check your screen-recording permissions and try again.");
+        return;
+      }
+      if (error.name === "NotSupportedError") {
+        setConnectionStatus("Screen sharing is unavailable in this Electron runtime. Update VEDA Desktop and try again.");
+        return;
+      }
       console.error("Screen sharing failed:", error);
-      setConnectionStatus(`Could not share screen: ${error.message}`);
+      setConnectionStatus(`Could not share screen: ${error.message || "An unexpected capture error occurred."}`);
     }
   };
 

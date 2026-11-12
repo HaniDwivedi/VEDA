@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, desktopCapturer, dialog, ipcMain, session } = require("electron");
 const { spawn } = require("node:child_process");
 const { randomBytes } = require("node:crypto");
 const { autoUpdater } = require("electron-updater");
@@ -49,6 +49,72 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, "dist", "index.html"));
   mainWindow.on("closed", () => {
     mainWindow = null;
+  });
+}
+
+function registerScreenCaptureHandler() {
+  session.defaultSession.setDisplayMediaRequestHandler(async (_request, callback) => {
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: ["screen"],
+        thumbnailSize: { width: 0, height: 0 }
+      });
+
+      if (sources.length === 0) {
+        const options = {
+          type: "warning",
+          title: "No display available",
+          message: "VEDA could not find a display to share.",
+          detail: "Check your operating system's screen-recording permissions and try again.",
+          buttons: ["OK"]
+        };
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          await dialog.showMessageBox(mainWindow, options);
+        } else {
+          await dialog.showMessageBox(options);
+        }
+        callback({});
+        return;
+      }
+
+      const cancelId = sources.length;
+      const options = {
+        type: "question",
+        title: "Share a display with your paired phone?",
+        message: "Choose which display to share.",
+        detail: "VEDA will send only the selected display to your paired phone. Choose Cancel to keep your screen private.",
+        buttons: [
+          ...sources.map((source, index) => source.name || `Display ${index + 1}`),
+          "Cancel"
+        ],
+        defaultId: cancelId,
+        cancelId
+      };
+      const { response } = mainWindow && !mainWindow.isDestroyed()
+        ? await dialog.showMessageBox(mainWindow, options)
+        : await dialog.showMessageBox(options);
+
+      callback(response === cancelId ? {} : { video: sources[response] });
+    } catch (error) {
+      console.error("Could not prepare desktop screen capture:", error);
+      try {
+        const options = {
+          type: "error",
+          title: "Screen sharing unavailable",
+          message: "VEDA could not prepare screen sharing.",
+          detail: "Check your operating system's screen-recording permissions, then try again.",
+          buttons: ["OK"]
+        };
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          await dialog.showMessageBox(mainWindow, options);
+        } else {
+          await dialog.showMessageBox(options);
+        }
+      } catch (dialogError) {
+        console.error("Could not display the screen capture error:", dialogError);
+      }
+      callback({});
+    }
   });
 }
 
@@ -142,6 +208,7 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(() => {
+    registerScreenCaptureHandler();
     startAgentWidget();
     createWindow();
     startUpdateChecks();
