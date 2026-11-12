@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, desktopCapturer, dialog, ipcMain, session } = require("electron");
 const { spawn } = require("node:child_process");
 const { randomBytes } = require("node:crypto");
 const { autoUpdater } = require("electron-updater");
@@ -52,12 +52,60 @@ function createWindow() {
   });
 }
 
-ipcMain.handle("pair-desktop-agent", async (event, credentials) => {
+function assertMainWindowSender(event) {
   if (!mainWindow || event.sender !== mainWindow.webContents ||
       event.senderFrame !== mainWindow.webContents.mainFrame ||
       !event.senderFrame.url.startsWith("file:")) {
-    throw new Error("Desktop agent pairing is only available from the VEDA app.");
+    throw new Error("Desktop agent controls are only available from the VEDA app.");
   }
+}
+
+async function requestAgent(path, method = "GET") {
+  if (!agentProcess || !agentBridgeToken) {
+    throw new Error("The local desktop agent is not running.");
+  }
+
+  const response = await fetch(`http://127.0.0.1:8765${path}`, {
+    method,
+    headers: { "X-VEDA-Agent-Token": agentBridgeToken },
+    signal: AbortSignal.timeout(5000)
+  });
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(result.error || `Local desktop agent request failed (${response.status}).`);
+  }
+  return result;
+}
+
+function installDisplayMediaHandler() {
+  session.defaultSession.setDisplayMediaRequestHandler(async (_request, callback) => {
+    try {
+      const sources = await desktopCapturer.getSources({ types: ["screen"] });
+      if (!mainWindow || sources.length === 0) {
+        callback({});
+        return;
+      }
+
+      const cancelId = sources.length;
+      const { response } = await dialog.showMessageBox(mainWindow, {
+        type: "question",
+        title: "Share your screen",
+        message: "Choose a display to share with the paired phone.",
+        buttons: [...sources.map((source) => source.name), "Cancel"],
+        cancelId,
+        defaultId: 0,
+        noLink: true
+      });
+      callback(response === cancelId ? {} : { video: sources[response] });
+    } catch (error) {
+      console.error("Could not open the screen-sharing picker:", error);
+      callback({});
+    }
+  });
+}
+
+ipcMain.handle("pair-desktop-agent", async (event, credentials) => {
+  assertMainWindowSender(event);
   if (!agentProcess || !agentBridgeToken || !credentials ||
       typeof credentials.accessToken !== "string" ||
       typeof credentials.refreshToken !== "string" ||
@@ -78,6 +126,16 @@ ipcMain.handle("pair-desktop-agent", async (event, credentials) => {
     throw new Error(`Local desktop agent pairing failed (${response.status}).`);
   }
   return response.json();
+});
+
+ipcMain.handle("get-desktop-agent-status", async (event) => {
+  assertMainWindowSender(event);
+  return requestAgent("/status");
+});
+
+ipcMain.handle("trigger-desktop-agent", async (event) => {
+  assertMainWindowSender(event);
+  return requestAgent("/trigger", "POST");
 });
 
 async function promptToInstallUpdate() {
@@ -142,6 +200,7 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(() => {
+    installDisplayMediaHandler();
     startAgentWidget();
     createWindow();
     startUpdateChecks();

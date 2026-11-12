@@ -25,6 +25,19 @@ export default function MobileStream() {
     const socket = createAuthenticatedSocket();
     socketRef.current = socket;
 
+    let peerConnectionSetup;
+    let peerConnectionGeneration = 0;
+
+    const resetPeerConnection = () => {
+      peerConnectionGeneration += 1;
+      peerConnectionSetup = null;
+      const peer = peerRef.current;
+      peerRef.current = null;
+      pendingCandidatesRef.current = [];
+      if (peer && peer.signalingState !== "closed") peer.close();
+      if (videoRef.current) videoRef.current.srcObject = null;
+    };
+
     const applyPendingCandidates = async (peer) => {
       const candidates = pendingCandidatesRef.current.splice(0);
       for (const candidate of candidates) {
@@ -63,31 +76,45 @@ export default function MobileStream() {
 
     // 3. Prepare WebRTC Peer Connection using server ICE config
     const preparePeerConnection = async () => {
-      const response = await fetchWithAuth(`${API_URL}/api/rtc-config`);
-      if (!response.ok) {
-        throw new Error(`ICE configuration request failed (${response.status}).`);
+      if (peerRef.current && peerRef.current.signalingState !== "closed") return;
+      const generation = peerConnectionGeneration;
+      if (peerConnectionSetup?.generation === generation) {
+        return peerConnectionSetup.promise;
       }
-      
-      const { iceServers } = await response.json();
-      const peer = new RTCPeerConnection({ iceServers });
-      peerRef.current = peer;
 
-      peer.onicecandidate = ({ candidate }) => {
-        if (candidate) socket.emit("webrtc_signal", { candidate });
-      };
-
-      peer.ontrack = ({ streams }) => {
-        if (videoRef.current && streams[0]) {
-          videoRef.current.srcObject = streams[0];
-          setConnectionStatus("Receiving desktop screen");
+      pendingCandidatesRef.current = [];
+      const setup = (async () => {
+        const response = await fetchWithAuth(`${API_URL}/api/rtc-config`);
+        if (!response.ok) {
+          throw new Error(`ICE configuration request failed (${response.status}).`);
         }
-      };
 
-      peer.onconnectionstatechange = () => {
-        setConnectionStatus(peer.connectionState);
-      };
+        const { iceServers } = await response.json();
+        if (!socket.connected || generation !== peerConnectionGeneration) return;
 
-      socket.emit("webrtc_ready");
+        const peer = new RTCPeerConnection({ iceServers });
+        peerRef.current = peer;
+        peer.onicecandidate = ({ candidate }) => {
+          if (candidate) socket.emit("webrtc_signal", { candidate: candidate.toJSON() });
+        };
+        peer.ontrack = ({ streams }) => {
+          if (peerRef.current === peer && videoRef.current && streams[0]) {
+            videoRef.current.srcObject = streams[0];
+            setConnectionStatus("Receiving desktop screen");
+          }
+        };
+        peer.onconnectionstatechange = () => {
+          if (peerRef.current === peer) setConnectionStatus(peer.connectionState);
+        };
+        socket.emit("webrtc_ready");
+      })();
+      peerConnectionSetup = { generation, promise: setup };
+
+      try {
+        await setup;
+      } finally {
+        if (peerConnectionSetup?.promise === setup) peerConnectionSetup = null;
+      }
     };
 
     socket.on("connect", () => {
@@ -104,6 +131,10 @@ export default function MobileStream() {
 
     socket.on("webrtc_peer_ready", () => {
       setConnectionStatus("Desktop connected; waiting for screen share...");
+      preparePeerConnection().catch((error) => {
+        console.error("WebRTC setup failed:", error);
+        setConnectionStatus(error.message);
+      });
     });
 
     socket.on("webrtc_signal", handleSignal);
@@ -114,6 +145,17 @@ export default function MobileStream() {
 
     socket.on("stream_peer_disconnected", () => {
       setConnectionStatus("Desktop disconnected.");
+      resetPeerConnection();
+      if (socket.connected) {
+        preparePeerConnection().catch((error) => {
+          console.error("WebRTC setup failed:", error);
+          setConnectionStatus(error.message);
+        });
+      }
+    });
+
+    socket.on("disconnect", () => {
+      resetPeerConnection();
     });
 
     socket.on("agent_response", ({ resultText }) => {
@@ -126,8 +168,9 @@ export default function MobileStream() {
     socket.connect();
 
     return () => {
+      socket.removeAllListeners();
       socket.disconnect();
-      if (peerRef.current) peerRef.current.close();
+      resetPeerConnection();
     };
   }, []);
 
@@ -136,6 +179,8 @@ export default function MobileStream() {
       peerRef.current.close();
       peerRef.current = null;
     }
+    pendingCandidatesRef.current = [];
+    if (videoRef.current) videoRef.current.srcObject = null;
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
@@ -199,7 +244,7 @@ export default function MobileStream() {
         This phone receives the desktop WebRTC stream and sends remote execution commands.
       </p>
       
-      <video ref={videoRef} autoPlay playsInline controls style={styles.video} />
+      <video ref={videoRef} autoPlay playsInline muted controls style={styles.video} />
       
       <div style={styles.controls}>
         <button onClick={handleVoiceListen} disabled={isStopped} style={styles.button}>

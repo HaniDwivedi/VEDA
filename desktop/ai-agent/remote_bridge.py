@@ -30,11 +30,16 @@ class RemoteAgentBridge:
         allowed_origins: set[str],
         on_connection_change: Callable[[bool], None] | None = None,
         on_voice_stream_change: Callable[[bool], None] | None = None,
+        get_runtime_status: Callable[[], dict] | None = None,
+        trigger_agent: Callable[[], bool] | None = None,
     ) -> None:
         self.server_url = self._normalize_server_url(server_url)
         self.allowed_origins = allowed_origins
         self.on_connection_change = on_connection_change
         self.on_voice_stream_change = on_voice_stream_change
+        self.get_runtime_status = get_runtime_status
+        self.trigger_agent = trigger_agent
+        self.voice_stream_active = False
         self.bridge_token = os.getenv("VEDA_AGENT_BRIDGE_TOKEN", "")
         self.client = socketio.Client(reconnection=False, logger=False, engineio_logger=False)
         self._stop = threading.Event()
@@ -66,6 +71,7 @@ class RemoteAgentBridge:
         if not isinstance(active, bool):
             logger.warning("Ignoring malformed voice stream state.")
             return
+        self.voice_stream_active = active
         if self.on_voice_stream_change:
             try:
                 self.on_voice_stream_change(active)
@@ -98,7 +104,40 @@ class RemoteAgentBridge:
                 self._cors_headers()
                 self.end_headers()
 
+            def do_GET(self) -> None:
+                if self.path != "/status" or not bridge._allow_agent_control(self):
+                    self.send_error(403)
+                    return
+                if not bridge.get_runtime_status:
+                    self._send_json(503, {"error": "Agent status is unavailable."})
+                    return
+                try:
+                    self._send_json(200, bridge.get_runtime_status())
+                except Exception:
+                    logger.exception("Could not read the desktop agent status.")
+                    self._send_json(500, {"error": "Could not read desktop agent status."})
+
             def do_POST(self) -> None:
+                if self.path == "/trigger":
+                    if not bridge._allow_agent_control(self):
+                        self.send_error(403)
+                        return
+                    if not bridge.trigger_agent:
+                        self._send_json(503, {"error": "Desktop agent controls are unavailable."})
+                        return
+                    try:
+                        if not bridge.trigger_agent():
+                            self._send_json(409, {
+                                "error": "The agent must be connected and its voice engine ready."
+                            })
+                            return
+                    except Exception:
+                        logger.exception("Could not start a manual desktop agent request.")
+                        self._send_json(500, {"error": "Could not start the desktop agent request."})
+                        return
+                    self._send_json(202, {"started": True})
+                    return
+
                 if self.path != "/pair" or not bridge._allow_origin(self):
                     self.send_error(403)
                     return
@@ -141,8 +180,17 @@ class RemoteAgentBridge:
                     self.send_header("Access-Control-Allow-Origin", origin)
                     self.send_header("Vary", "Origin")
                 self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
-                self.send_header("Access-Control-Allow-Headers", "Content-Type")
+                self.send_header("Access-Control-Allow-Headers", "Content-Type, X-VEDA-Agent-Token")
                 self.send_header("Access-Control-Allow-Private-Network", "true")
+
+            def _send_json(self, status: int, payload: dict) -> None:
+                body = json.dumps(payload).encode("utf-8")
+                self.send_response(status)
+                self._cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
 
             def log_message(self, _format: str, *_args) -> None:
                 return
@@ -159,6 +207,14 @@ class RemoteAgentBridge:
         supplied_token = request.headers.get("X-VEDA-Agent-Token", "")
         return bool(
             not origin
+            and self.bridge_token
+            and hmac.compare_digest(supplied_token, self.bridge_token)
+        )
+
+    def _allow_agent_control(self, request: BaseHTTPRequestHandler) -> bool:
+        supplied_token = request.headers.get("X-VEDA-Agent-Token", "")
+        return bool(
+            self._allow_origin(request)
             and self.bridge_token
             and hmac.compare_digest(supplied_token, self.bridge_token)
         )

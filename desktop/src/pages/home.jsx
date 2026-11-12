@@ -96,7 +96,7 @@ export default function DesktopHome() {
                 setAgentBridgeStatus("Desktop agent paired and credentials stored securely.");
               } catch (bridgeError) {
                 setAgentBridgeStatus(
-                  `Desktop agent is not connected: ${bridgeError.message}. Start the desktop widget and pair again.`
+                  `Desktop agent is not connected: ${bridgeError.message}. Restart VEDA Desktop and pair again.`
                 );
               }
             }

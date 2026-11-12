@@ -1,9 +1,10 @@
 # VEDA Desktop
 
 The desktop client is packaged as a Windows NSIS installer with Electron. On
-launch it opens the pairing screen and starts the bundled floating agent widget.
-After the phone is paired, open the stream from the pairing screen; the widget
-shows agent status and listens for voice commands while the phone is connected.
+launch it opens the pairing screen and starts the bundled desktop agent in the
+background. After the phone is paired, open the stream from the pairing screen;
+the desktop window shows agent status and controls, and the agent listens for
+voice commands while the phone is connected.
 Packaged releases check the GitHub Releases page on launch and every six hours.
 Updates download in the background; after a download, the app asks the user
 before restarting to install it. Production builds use

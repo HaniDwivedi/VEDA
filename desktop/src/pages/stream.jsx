@@ -8,6 +8,9 @@ export default function DesktopStream() {
   const [connectionStatus, setConnectionStatus] = useState("Connecting");
   const [mobileConnected, setMobileConnected] = useState(false);
   const [isSharingScreen, setIsSharingScreen] = useState(false);
+  const [desktopAgent, setDesktopAgent] = useState(null);
+  const [agentBridgeError, setAgentBridgeError] = useState("");
+  const [isTriggeringAgent, setIsTriggeringAgent] = useState(false);
   
   const socketRef = useRef(null);
   const peerRef = useRef(null);
@@ -15,6 +18,52 @@ export default function DesktopStream() {
   const screenSenderRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const pendingCandidatesRef = useRef([]);
+
+  const stopScreenShare = async (updateStatus = true) => {
+    const track = screenTrackRef.current;
+    const sender = screenSenderRef.current;
+    screenTrackRef.current = null;
+    try {
+      if (sender && peerRef.current?.connectionState !== "closed") {
+        await sender.replaceTrack(null);
+      }
+    } finally {
+      if (track && track.readyState !== "ended") track.stop();
+      setIsSharingScreen(false);
+      if (updateStatus) setConnectionStatus("Screen sharing stopped");
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+    const getAgentStatus = window.vedaAgent?.getStatus;
+    if (!getAgentStatus) {
+      setAgentBridgeError("Local agent controls are available in the VEDA Desktop app.");
+      return () => { active = false; };
+    }
+
+    const refreshAgentStatus = async () => {
+      try {
+        const status = await getAgentStatus();
+        if (active) {
+          setDesktopAgent(status);
+          setAgentBridgeError("");
+        }
+      } catch (error) {
+        if (active) {
+          setDesktopAgent(null);
+          setAgentBridgeError(error.message);
+        }
+      }
+    };
+
+    refreshAgentStatus();
+    const interval = window.setInterval(refreshAgentStatus, 2000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("gat");
@@ -26,15 +75,26 @@ export default function DesktopStream() {
     const socket = createAuthenticatedSocket();
     socketRef.current = socket;
 
-    const stopScreenShare = async (updateStatus = true) => {
+    let peerConnectionSetup;
+    let peerConnectionGeneration = 0;
+
+    const resetPeerConnection = (updateUi = true) => {
+      peerConnectionGeneration += 1;
+      peerConnectionSetup = null;
+      const peer = peerRef.current;
+      peerRef.current = null;
+      screenSenderRef.current = null;
+      pendingCandidatesRef.current = [];
+      if (peer && peer.signalingState !== "closed") peer.close();
+
       const track = screenTrackRef.current;
       screenTrackRef.current = null;
-      if (screenSenderRef.current) {
-        await screenSenderRef.current.replaceTrack(null);
-      }
       if (track && track.readyState !== "ended") track.stop();
-      setIsSharingScreen(false);
-      if (updateStatus) setConnectionStatus("Screen sharing stopped");
+      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+      if (updateUi) {
+        setIsSharingScreen(false);
+        setMobileVideoAvailable(false);
+      }
     };
 
     const applyPendingCandidates = async (peer) => {
@@ -66,24 +126,45 @@ export default function DesktopStream() {
     };
 
     const preparePeerConnection = async () => {
-      const response = await fetchWithAuth(`${API_URL}/api/rtc-config`);
-      if (!response.ok) {
-        throw new Error(`ICE configuration request failed (${response.status}).`);
+      if (peerRef.current && peerRef.current.signalingState !== "closed") return;
+      const generation = peerConnectionGeneration;
+      if (peerConnectionSetup?.generation === generation) {
+        return peerConnectionSetup.promise;
       }
-      const { iceServers } = await response.json();
-      const peer = new RTCPeerConnection({ iceServers });
-      peerRef.current = peer;
-      peer.onicecandidate = ({ candidate }) => {
-        if (candidate) socket.emit("webrtc_signal", { candidate });
-      };
-      peer.ontrack = ({ streams }) => {
-        if (remoteVideoRef.current && streams[0]) {
-          remoteVideoRef.current.srcObject = streams[0];
-          setMobileVideoAvailable(true);
+
+      pendingCandidatesRef.current = [];
+      const setup = (async () => {
+        const response = await fetchWithAuth(`${API_URL}/api/rtc-config`);
+        if (!response.ok) {
+          throw new Error(`ICE configuration request failed (${response.status}).`);
         }
-      };
-      peer.onconnectionstatechange = () => setConnectionStatus(peer.connectionState);
-      socket.emit("webrtc_ready");
+        const { iceServers } = await response.json();
+        if (!socket.connected || generation !== peerConnectionGeneration) return;
+
+        const peer = new RTCPeerConnection({ iceServers });
+        peerRef.current = peer;
+        screenSenderRef.current = null;
+        peer.onicecandidate = ({ candidate }) => {
+          if (candidate) socket.emit("webrtc_signal", { candidate: candidate.toJSON() });
+        };
+        peer.ontrack = ({ streams }) => {
+          if (peerRef.current === peer && remoteVideoRef.current && streams[0]) {
+            remoteVideoRef.current.srcObject = streams[0];
+            setMobileVideoAvailable(true);
+          }
+        };
+        peer.onconnectionstatechange = () => {
+          if (peerRef.current === peer) setConnectionStatus(peer.connectionState);
+        };
+        socket.emit("webrtc_ready");
+      })();
+      peerConnectionSetup = { generation, promise: setup };
+
+      try {
+        await setup;
+      } finally {
+        if (peerConnectionSetup?.promise === setup) peerConnectionSetup = null;
+      }
     };
 
     socket.on("connect", () => {
@@ -97,10 +178,16 @@ export default function DesktopStream() {
     socket.on("connect_error", (error) => {
       setConnectionStatus(`Connection failed: ${error.message}`);
     });
-    socket.on("webrtc_peer_ready", () => {
-      setMobileConnected(true);
-      socket.emit("voice_stream_state", { active: true });
-      setConnectionStatus("Phone connected; screen sharing is ready");
+    socket.on("webrtc_peer_ready", async () => {
+      try {
+        await preparePeerConnection();
+        setMobileConnected(true);
+        socket.emit("voice_stream_state", { active: true });
+        setConnectionStatus("Phone connected; screen sharing is ready");
+      } catch (error) {
+        console.error("WebRTC setup failed:", error);
+        setConnectionStatus(error.message);
+      }
     });
     socket.on("webrtc_signal", handleSignal);
     socket.on("stream_error", ({ message }) => setConnectionStatus(message));
@@ -125,20 +212,21 @@ export default function DesktopStream() {
       setMobileConnected(false);
       socket.emit("voice_stream_state", { active: false });
       setConnectionStatus("Paired device disconnected");
-      stopScreenShare(false).catch((error) => {
-        console.error("Could not stop the disconnected screen share:", error);
-      });
+      resetPeerConnection();
+    });
+
+    socket.on("disconnect", () => {
+      setMobileConnected(false);
+      resetPeerConnection();
     });
 
     socket.connect();
 
     return () => {
       if (socket.connected) socket.emit("voice_stream_state", { active: false });
+      socket.removeAllListeners();
       socket.disconnect();
-      if (peerRef.current) peerRef.current.close();
-      if (screenTrackRef.current && screenTrackRef.current.readyState !== "ended") {
-        screenTrackRef.current.stop();
-      }
+      resetPeerConnection(false);
     };
   }, []);
 
@@ -165,11 +253,18 @@ export default function DesktopStream() {
         throw new Error("No screen video track was selected.");
       }
 
+      const peer = peerRef.current;
+      if (!peer || peer.signalingState === "closed") {
+        displayStream.getTracks().forEach((track) => track.stop());
+        throw new Error("The paired phone disconnected. Reconnect before sharing.");
+      }
+
       screenTrackRef.current = screenTrack;
       screenTrack.addEventListener("ended", () => {
         if (screenTrackRef.current === screenTrack) {
           screenTrackRef.current = null;
-          screenSenderRef.current?.replaceTrack(null).catch((error) => {
+          const sender = screenSenderRef.current;
+          if (sender && peerRef.current === peer) sender.replaceTrack(null).catch((error) => {
             console.error("Could not detach the ended screen track:", error);
           });
           setIsSharingScreen(false);
@@ -180,11 +275,11 @@ export default function DesktopStream() {
       if (screenSenderRef.current) {
         await screenSenderRef.current.replaceTrack(screenTrack);
       } else {
-        screenSenderRef.current = peerRef.current.addTrack(screenTrack, displayStream);
-        const offer = await peerRef.current.createOffer();
-        await peerRef.current.setLocalDescription(offer);
+        screenSenderRef.current = peer.addTrack(screenTrack, displayStream);
+        const offer = await peer.createOffer();
+        await peer.setLocalDescription(offer);
         socketRef.current.emit("webrtc_signal", {
-          description: peerRef.current.localDescription
+          description: peer.localDescription
         });
       }
       setIsSharingScreen(true);
@@ -196,6 +291,19 @@ export default function DesktopStream() {
       }
       console.error("Screen sharing failed:", error);
       setConnectionStatus(`Could not share screen: ${error.message}`);
+    }
+  };
+
+  const triggerDesktopAgent = async () => {
+    if (!window.vedaAgent?.trigger) return;
+    setIsTriggeringAgent(true);
+    try {
+      await window.vedaAgent.trigger();
+      setAgentStatus("Manual voice request started");
+    } catch (error) {
+      setAgentBridgeError(error.message);
+    } finally {
+      setIsTriggeringAgent(false);
     }
   };
 
@@ -232,6 +340,35 @@ export default function DesktopStream() {
         {!mobileVideoAvailable && <p>No incoming video stream.</p>}
         <h2>Agent status</h2>
         <p>{agentStatus}</p>
+      </section>
+      <section style={styles.card}>
+        <h2>Desktop agent</h2>
+        {desktopAgent ? (
+          <>
+            <p>{desktopAgent.connected ? "Securely connected" : "Waiting for secure connection"}</p>
+            <p>Voice stream: {desktopAgent.voiceStreamActive ? "Active" : "Inactive"}</p>
+            <p>
+              {desktopAgent.engineReady
+                ? `${desktopAgent.state}: ${desktopAgent.detail}`
+                : "Voice engine is starting or unavailable."}
+            </p>
+            <button
+              onClick={triggerDesktopAgent}
+              disabled={
+                !desktopAgent.connected ||
+                !desktopAgent.engineReady ||
+                ["queued", "running", "retrying"].includes(desktopAgent.state) ||
+                isTriggeringAgent
+              }
+              style={styles.button}
+            >
+              {isTriggeringAgent ? "Starting..." : "Start voice request"}
+            </button>
+          </>
+        ) : (
+          <p>{agentBridgeError || "Checking local agent status..."}</p>
+        )}
+        {agentBridgeError && desktopAgent && <p role="alert">{agentBridgeError}</p>}
       </section>
     </main>
   );

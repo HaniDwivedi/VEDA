@@ -1,4 +1,4 @@
-"""Render the floating Nexus widget and connect voice and paired-device agents."""
+"""Host the Nexus agent and its paired-device bridge for the Electron desktop app."""
 import os
 import queue
 import sys
@@ -41,7 +41,7 @@ class NexusWidget(ctk.CTk):
             ).split(",")
             if origin.strip()
         }
-        # Window Settings (Futuristic Compact Floating Panel)
+        # Keep the legacy Tk root alive for its event loop; controls are in Electron.
         self.title("ZR Nexus")
         self.geometry("280x90+50+50") 
         self.overrideredirect(True) # Removes window borders and standard title bar
@@ -96,9 +96,12 @@ class NexusWidget(ctk.CTk):
             allowed_origins,
             on_connection_change=self.on_secure_connection_change,
             on_voice_stream_change=self.on_voice_stream_change,
+            get_runtime_status=self.get_runtime_status,
+            trigger_agent=self.trigger_agent,
         )
         self.after(200, self.monitor_state)
         self.remote_bridge.start()
+        self.withdraw()
 
     def start_drag(self, event):
         self.x = event.x
@@ -115,6 +118,22 @@ class NexusWidget(ctk.CTk):
         """Main module ke naye structural handler ko safely trigger karega"""
         if self.secure_connected and main.is_engine_ready():
             main.trigger_ai_manually()
+
+    def get_runtime_status(self):
+        status = main.get_agent_status()
+        return {
+            "connected": self.secure_connected,
+            "voiceStreamActive": self.voice_stream_active,
+            "engineReady": main.is_engine_ready(),
+            "state": status["state"],
+            "detail": status["detail"],
+        }
+
+    def trigger_agent(self):
+        if not self.secure_connected or not main.is_engine_ready():
+            return False
+        main.trigger_ai_manually()
+        return True
 
     def on_secure_connection_change(self, connected):
         self.connection_events.put(connected)
